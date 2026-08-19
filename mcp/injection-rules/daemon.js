@@ -14165,6 +14165,10 @@ function makeRule(json) {
     throw new Error("send-on-start-not-boolean");
   }
   const sendOnStart = json.send_on_start !== false;
+  if (json.send_on_subagent !== undefined && typeof json.send_on_subagent !== "boolean") {
+    throw new Error("send-on-subagent-not-boolean");
+  }
+  const sendOnSubagent = json.send_on_subagent === true;
   let remindEvery, remindSuffix;
   let remindAny = [], remindAll = [], remindNone = [];
   let source = "any";
@@ -14215,7 +14219,8 @@ function makeRule(json) {
     windowSize,
     source,
     cooldownTurns,
-    sendOnStart
+    sendOnStart,
+    sendOnSubagent
   };
 }
 function semanticHit(rule, slicedTexts) {
@@ -14308,11 +14313,12 @@ function status() {
   };
 }
 function applyRule(rule, agentId = "main") {
-  if (rule.excludes.has(agentId))
+  const id = String(agentId).toLowerCase();
+  if (rule.excludes.has(id))
     return false;
-  return rule.wildcard || rule.includes.has(agentId);
+  return rule.wildcard || rule.includes.has(id);
 }
-function evaluate({ sessionId, source, text, tick }) {
+function evaluate({ sessionId, source, text, tick, agentId = "main" }) {
   if (!sessionId)
     throw new Error("sessionId-required");
   if (!["user", "assistant", "tool"].includes(source))
@@ -14328,7 +14334,6 @@ function evaluate({ sessionId, source, text, tick }) {
     state.turnIndex++;
     const rules = loadRules();
     const candidates = [];
-    const agentId = "main";
     for (const rule of rules) {
       if (!applyRule(rule, agentId))
         continue;

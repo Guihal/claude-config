@@ -5,9 +5,12 @@ import { readFileSync, readdirSync, writeFileSync, renameSync } from "node:fs";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 
-const RULES_DIR =
+// Каталоги экспортируются, потому что инструменты в этой же репе (tools/budget-sim.mjs) обязаны
+// читать и писать ровно там, откуда читает движок. Своя копия пути в инструменте означает, что
+// прогон на стенде (`RULES_DIR=/tmp/...`) правит боевой каталог, пока движок читает стенд.
+export const RULES_DIR =
   process.env.RULES_DIR || "/home/penis/.claude/mcp/injection-rules/rules";
-const STATE_DIR =
+export const STATE_DIR =
   process.env.STATE_DIR || "/home/penis/.claude/mcp/injection-rules";
 const BUFFER_CAP = 30;
 // Потолок отбора: сколько символов правил движок отдаёт за один ход.

@@ -17,12 +17,15 @@ import { readFileSync } from "node:fs";
 
 import { scenarioTexts } from "./sim-scenarios.mjs";
 import { searchCadences, emitLength, TIER_BANDS } from "./cadence-search.mjs";
+// Каталоги — у движка, а не своей копией: он резолвит их из env (`core.mjs:11-14`), стенд задаётся
+// той же env. С хардкодом здесь `--assign` писал бы в боевые правила, пока движок читает стенд.
+// STATE_DIR берётся статическим импортом намеренно: loadEngine подменяет process.env.STATE_DIR на
+// временный каталог, и после первого прохода env отдаёт уже его, а гарду нужен боевой.
+import { RULES_DIR, STATE_DIR as STATE_DIR_REAL } from "../core.mjs";
 
 const CORE_URL = pathToFileURL(
   "/home/penis/.claude/mcp/injection-rules/core.mjs",
 ).href;
-const RULES_DIR = "/home/penis/.claude/mcp/injection-rules/rules";
-const STATE_DIR_REAL = "/home/penis/.claude/mcp/injection-rules";
 // Пол бюджета: строго выше прежних 5400 (REQ-3 звучит «увеличивай лимит»). Бюджет — потолок на
 // завтра, а не замер сегодняшнего пика, поэтому опускать его вслед за пиком запрещено.
 const BUDGET_FLOOR = 5500;
