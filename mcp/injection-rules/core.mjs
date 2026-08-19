@@ -1,7 +1,14 @@
 // core.mjs — pure logic for injection-rules MCP (port of pi injection-rules.ts)
 // Zero npm deps. Imported by both hooks and daemon.
 
-import { readFileSync, readdirSync, writeFileSync, renameSync } from "node:fs";
+import {
+  readFileSync,
+  readdirSync,
+  writeFileSync,
+  renameSync,
+  statSync,
+  unlinkSync,
+} from "node:fs";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 
@@ -62,6 +69,28 @@ export const CHAR_BUDGET = readCharBudget();
 //   node -e 'import("./core.mjs").then(m=>{const s=m.subagentRules("worker");console.log(s.length, s.reduce((a,r)=>a+r.body.length,0)+2*(s.length-1))})'
 // Набор перерос лимит — emitHook скажет строкой `SubagentStart: truncated N → 10000`, молча не срежет.
 export const SUBAGENT_CHAR_BUDGET = 10000;
+
+// Сколько дней молчания переживает состояние сессии. Состояние копилось по файлу на сессию и не
+// убиралось никогда: замер 2026-08-19 — 324 файла / 36 МБ за 25 дней, ~40 новых в сутки, то есть
+// рост без retention, запрещённый правилом bounded-resources. Срок считается от mtime: живая
+// сессия пишет состояние каждый ход, поэтому под уборку попадает только молчащее дольше срока.
+// Потеря дешёвая: состояние — счётчик хода, буферы окна и штампы cooldown, всё восстановимо.
+export const STATE_TTL_DAYS_DEFAULT = 14;
+
+function readStateTtlDays() {
+  const raw = process.env.IR_STATE_TTL_DAYS;
+  if (raw === undefined || raw === "") return STATE_TTL_DAYS_DEFAULT;
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    console.error(
+      `[injection-rules] IR_STATE_TTL_DAYS=${raw} невалиден (нужно целое ≥ 1), беру дефолт ${STATE_TTL_DAYS_DEFAULT}`,
+    );
+    return STATE_TTL_DAYS_DEFAULT;
+  }
+  return parsed;
+}
+
+export const STATE_TTL_DAYS = readStateTtlDays();
 const VALID_SOURCES = new Set([
   "user_only",
   "assistant_only",
@@ -209,11 +238,6 @@ function makeRule(json) {
 }
 
 // ── rule predicates ─────────────────────────────────────────
-function ruleMatchesAgent(rule, agentId) {
-  if (rule.excludes.has(agentId)) return false;
-  return rule.wildcard || rule.includes.has(agentId);
-}
-
 function semanticHit(rule, slicedTexts) {
   if (rule.remindAny.length > 0) {
     if (!rule.remindAny.some((m) => slicedTexts.some((t) => m.test(t))))
@@ -272,8 +296,8 @@ function statePath(sessionId) {
   return join(STATE_DIR, "state." + sanitizeSessionId(sessionId) + ".json");
 }
 
-function loadState(sessionId) {
-  _sessions.add(sessionId);
+/** Читает состояние сессии с диска; нет файла — свежее состояние. Сессию НЕ регистрирует. */
+function readStateFile(sessionId) {
   try {
     return JSON.parse(readFileSync(statePath(sessionId), "utf8"));
   } catch (e) {
@@ -288,6 +312,47 @@ function loadState(sessionId) {
     }
     throw e;
   }
+}
+
+function loadState(sessionId) {
+  _sessions.add(sessionId);
+  return readStateFile(sessionId);
+}
+
+/**
+ * Удаляет состояния сессий, молчащих дольше STATE_TTL_DAYS, и брошенные .tmp от прерванной
+ * записи (их не видит ни один читатель, поэтому иначе они лежат вечно).
+ * Эффект — удаление файлов, поэтому вызывается ровно один раз за сессию, на первом тике.
+ * Fail-open: любая ошибка уборки — строка в stderr, не исключение; хук важнее уборки.
+ * @param {number} now — «сейчас» в мс (передаётся, чтобы уборку можно было проверить на стенде).
+ * @returns {number} сколько файлов удалено.
+ */
+function pruneStaleState(now) {
+  const cutoff = now - STATE_TTL_DAYS * 86400000;
+  let removed = 0;
+  try {
+    for (const name of readdirSync(STATE_DIR)) {
+      if (!name.startsWith("state.")) continue;
+      if (!name.endsWith(".json") && !name.endsWith(".json.tmp")) continue;
+      const path = join(STATE_DIR, name);
+      try {
+        if (statSync(path).mtimeMs >= cutoff) continue;
+        unlinkSync(path);
+        removed += 1;
+      } catch (e) {
+        if (e.code !== "ENOENT") throw e;
+      }
+    }
+  } catch (e) {
+    console.error(`[injection-rules] state-prune: ${e.message}`);
+    return removed;
+  }
+  if (removed > 0) {
+    console.error(
+      `[injection-rules] state-prune: удалено ${removed} состояний старше ${STATE_TTL_DAYS} дн`,
+    );
+  }
+  return removed;
 }
 
 function saveState(sessionId, state) {
@@ -326,14 +391,29 @@ export function getRule(name) {
   return loadRules().find((r) => r.name === name) || null;
 }
 
-export function status() {
-  return {
+/**
+ * Здоровье движка; с sessionId — ещё и след последнего среза бюджета у этой сессии.
+ * Срез пишется в состояние (`evaluate`), но до появления этой ветки прочитать его было нечем:
+ * поле висело мёртвым, и «лимит не молчит» держалось на одной строке в stderr, которую видно
+ * только под `claude --debug`. Запись о срезе НЕ стирается — она про ход, а не про «сейчас»,
+ * поэтому рядом отдаётся turn_index: свежесть = turn_index − last_overflow.turn.
+ */
+export function status(sessionId) {
+  const base = {
     rules_count: loadRules().length,
     sessions_count: _sessions.size,
     uptime_ms: Date.now() - _startedAt,
     // Наружу — чтобы паритет лимита у MCP-сервера (собранный бандл) и у хуков (импорт core.mjs)
     // можно было проверить командой, а не верой в то, что бандл пересобран.
     char_budget: CHAR_BUDGET,
+    state_ttl_days: STATE_TTL_DAYS,
+  };
+  if (!sessionId) return base;
+  const state = readStateFile(sessionId);
+  return {
+    ...base,
+    turn_index: state.turnIndex,
+    last_overflow: state.lastOverflow ?? null,
   };
 }
 
@@ -368,6 +448,9 @@ export function evaluate({ sessionId, source, text, tick, agentId = "main" }) {
   // 2. tick + evaluate
   if (tick) {
     state.turnIndex++;
+    // Первый тик сессии = единственный момент уборки: readdir по каталогу состояний на КАЖДОМ
+    // ходу — та же неограниченная работа, только по времени вместо диска.
+    if (state.turnIndex === 1) pruneStaleState(Date.now());
     const rules = loadRules();
     const candidates = [];
 

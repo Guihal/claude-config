@@ -46,8 +46,13 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     },
     {
       name: "status",
-      description: "Daemon health: rules count, sessions count, uptime.",
-      inputSchema: { type: "object", properties: {} },
+      description:
+        "Daemon health: rules count, sessions count, uptime, char budget, state TTL. " +
+        "With sessionId also returns that session's turn index and last budget overflow.",
+      inputSchema: {
+        type: "object",
+        properties: { sessionId: { type: "string" } },
+      },
     },
   ],
 }));
@@ -72,7 +77,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       return { content: [{ type: "text", text: JSON.stringify(r) }] };
     }
     if (name === "status") {
-      return { content: [{ type: "text", text: JSON.stringify(rulesStatus()) }] };
+      return { content: [{ type: "text", text: JSON.stringify(rulesStatus(args?.sessionId)) }] };
     }
     return { content: [{ type: "text", text: `unknown tool: ${name}` }], isError: true };
   } catch (e: any) {

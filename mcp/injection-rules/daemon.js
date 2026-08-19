@@ -14072,7 +14072,14 @@ class StdioServerTransport {
 }
 
 // core.mjs
-import { readFileSync, readdirSync, writeFileSync, renameSync } from "fs";
+import {
+  readFileSync,
+  readdirSync,
+  writeFileSync,
+  renameSync,
+  statSync,
+  unlinkSync
+} from "fs";
 import { join } from "path";
 import { createHash } from "crypto";
 var RULES_DIR = process.env.RULES_DIR || "/home/penis/.claude/mcp/injection-rules/rules";
@@ -14092,6 +14099,19 @@ function readCharBudget() {
   return parsed;
 }
 var CHAR_BUDGET = readCharBudget();
+var STATE_TTL_DAYS_DEFAULT = 14;
+function readStateTtlDays() {
+  const raw = process.env.IR_STATE_TTL_DAYS;
+  if (raw === undefined || raw === "")
+    return STATE_TTL_DAYS_DEFAULT;
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    console.error(`[injection-rules] IR_STATE_TTL_DAYS=${raw} \u043D\u0435\u0432\u0430\u043B\u0438\u0434\u0435\u043D (\u043D\u0443\u0436\u043D\u043E \u0446\u0435\u043B\u043E\u0435 \u2265 1), \u0431\u0435\u0440\u0443 \u0434\u0435\u0444\u043E\u043B\u0442 ${STATE_TTL_DAYS_DEFAULT}`);
+    return STATE_TTL_DAYS_DEFAULT;
+  }
+  return parsed;
+}
+var STATE_TTL_DAYS = readStateTtlDays();
 var VALID_SOURCES = new Set([
   "user_only",
   "assistant_only",
@@ -14271,8 +14291,7 @@ function loadRules() {
 function statePath(sessionId) {
   return join(STATE_DIR, "state." + sanitizeSessionId(sessionId) + ".json");
 }
-function loadState(sessionId) {
-  _sessions.add(sessionId);
+function readStateFile(sessionId) {
   try {
     return JSON.parse(readFileSync(statePath(sessionId), "utf8"));
   } catch (e) {
@@ -14287,6 +14306,39 @@ function loadState(sessionId) {
     }
     throw e;
   }
+}
+function loadState(sessionId) {
+  _sessions.add(sessionId);
+  return readStateFile(sessionId);
+}
+function pruneStaleState(now) {
+  const cutoff = now - STATE_TTL_DAYS * 86400000;
+  let removed = 0;
+  try {
+    for (const name of readdirSync(STATE_DIR)) {
+      if (!name.startsWith("state."))
+        continue;
+      if (!name.endsWith(".json") && !name.endsWith(".json.tmp"))
+        continue;
+      const path = join(STATE_DIR, name);
+      try {
+        if (statSync(path).mtimeMs >= cutoff)
+          continue;
+        unlinkSync(path);
+        removed += 1;
+      } catch (e) {
+        if (e.code !== "ENOENT")
+          throw e;
+      }
+    }
+  } catch (e) {
+    console.error(`[injection-rules] state-prune: ${e.message}`);
+    return removed;
+  }
+  if (removed > 0) {
+    console.error(`[injection-rules] state-prune: \u0443\u0434\u0430\u043B\u0435\u043D\u043E ${removed} \u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u0439 \u0441\u0442\u0430\u0440\u0448\u0435 ${STATE_TTL_DAYS} \u0434\u043D`);
+  }
+  return removed;
 }
 function saveState(sessionId, state) {
   state.updatedAt = new Date().toISOString();
@@ -14304,12 +14356,21 @@ function listRules() {
 function getRule(name) {
   return loadRules().find((r) => r.name === name) || null;
 }
-function status() {
-  return {
+function status(sessionId) {
+  const base = {
     rules_count: loadRules().length,
     sessions_count: _sessions.size,
     uptime_ms: Date.now() - _startedAt,
-    char_budget: CHAR_BUDGET
+    char_budget: CHAR_BUDGET,
+    state_ttl_days: STATE_TTL_DAYS
+  };
+  if (!sessionId)
+    return base;
+  const state = readStateFile(sessionId);
+  return {
+    ...base,
+    turn_index: state.turnIndex,
+    last_overflow: state.lastOverflow ?? null
   };
 }
 function applyRule(rule, agentId = "main") {
@@ -14332,6 +14393,8 @@ function evaluate({ sessionId, source, text, tick, agentId = "main" }) {
   }
   if (tick) {
     state.turnIndex++;
+    if (state.turnIndex === 1)
+      pruneStaleState(Date.now());
     const rules = loadRules();
     const candidates = [];
     for (const rule of rules) {
@@ -14444,8 +14507,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     },
     {
       name: "status",
-      description: "Daemon health: rules count, sessions count, uptime.",
-      inputSchema: { type: "object", properties: {} }
+      description: "Daemon health: rules count, sessions count, uptime, char budget, state TTL. " + "With sessionId also returns that session's turn index and last budget overflow.",
+      inputSchema: {
+        type: "object",
+        properties: { sessionId: { type: "string" } }
+      }
     }
   ]
 }));
@@ -14470,7 +14536,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       return { content: [{ type: "text", text: JSON.stringify(r) }] };
     }
     if (name === "status") {
-      return { content: [{ type: "text", text: JSON.stringify(status()) }] };
+      return { content: [{ type: "text", text: JSON.stringify(status(args?.sessionId)) }] };
     }
     return { content: [{ type: "text", text: `unknown tool: ${name}` }], isError: true };
   } catch (e) {
