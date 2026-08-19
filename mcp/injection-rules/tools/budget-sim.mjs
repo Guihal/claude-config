@@ -12,6 +12,7 @@ import { mkdtempSync, rmSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 
 import { scenarioTexts } from "./sim-scenarios.mjs";
@@ -97,17 +98,21 @@ function quantile(sorted, q) {
 
 /**
  * Резерв бюджета = самое дорогое одиночное событие «правило отдало тело вместо суффикса».
- * Движок отдаёт body, а не suffix, в двух штатных случаях (core.mjs, ветка каденса и semantic):
- * у правила нет суффикса, либо оно сработало семантически. Значит бюджет обязан поглотить хотя бы
- * одно такое событие без среза — иначе он рассчитан на средний ход, а не на реальный.
+ *
+ * Считается по Р3 плана: `max(body − suffix)` среди правил, которые НЕ отдают тело каждый ход.
+ * Правило, отдающее тело всегда (`a-working-product`: нет суффикса, semantic-хак `when.none` с
+ * never-match регэкспом), уже целиком сидит в измеренном пике — считать его резервом значило бы
+ * заложить один и тот же расход дважды и не заложить будущее правило, ради которого резерв заведён.
  */
 function measureReserve(rules) {
   let best = { name: "-", delta: 0 };
   for (const rule of rules) {
     const suffix = rule.remind?.suffix;
-    const alwaysBody = !suffix || rule.remind?.when !== undefined;
-    if (!alwaysBody) continue;
-    const delta = rule.body.length - (suffix?.length ?? 0);
+    const when = rule.remind?.when;
+    const triggered = Boolean(when?.any || when?.all);
+    const everyTurn = !suffix || (when !== undefined && !triggered);
+    if (everyTurn) continue;
+    const delta = rule.body.length - suffix.length;
     if (delta > best.delta) best = { name: rule.name, delta };
   }
   return best;
@@ -187,10 +192,27 @@ function expectedDeliveries(rule, horizon) {
   return Math.floor(horizon / every);
 }
 
-function countRealState() {
-  return readdirSync(STATE_DIR_REAL).filter(
-    (f) => f.startsWith("state.") && f.endsWith(".json"),
-  ).length;
+/**
+ * Имена state-файлов, которые оставил бы САМ симулятор, если бы промахнулся мимо временного
+ * каталога. Движок хеширует sessionId (`core.mjs:74`) — повторяем ту же формулу.
+ *
+ * Считать файлы в боевом каталоге нельзя: туда законно пишут ДРУГИЕ живые сессии Claude Code, и
+ * счётчик «до/после» ловил их, а не симулятор (воспроизведено: два одинаковых прогона подряд
+ * разошлись, потому что между ними тикнула чужая сессия). Признак должен быть про нас, а не про
+ * каталог.
+ */
+function ownStateFiles(sessionIds) {
+  return sessionIds.map(
+    (id) =>
+      "state." +
+      createHash("sha256").update(String(id)).digest("hex").slice(0, 12) +
+      ".json",
+  );
+}
+
+function leakedStateFiles(sessionIds) {
+  const present = new Set(readdirSync(STATE_DIR_REAL));
+  return ownStateFiles(sessionIds).filter((f) => present.has(f));
 }
 
 /**
@@ -273,7 +295,8 @@ async function runAssign(horizon) {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-  const stateBefore = countRealState();
+  // Сессии, которыми ходит симулятор: их имена и проверяются на утечку в боевой каталог.
+  const ownSessions = ["baseline", "pathological", "base"];
   if (args.assign) await runAssign(args.horizon);
   const rules = readRules();
   const realBudget =
@@ -374,12 +397,12 @@ async function main() {
     );
   }
 
-  const stateAfter = countRealState();
+  const leaked = leakedStateFiles(ownSessions);
   console.log(
-    `state-файлов в боевом каталоге: до=${stateBefore} после=${stateAfter}`,
+    `состояние симулятора в боевом каталоге: ${leaked.length === 0 ? "нет (ok)" : leaked.join(", ")}`,
   );
-  if (stateBefore !== stateAfter)
-    problems.push("симулятор задел боевой каталог состояния");
+  if (leaked.length > 0)
+    problems.push(`симулятор задел боевой каталог состояния: ${leaked.join(", ")}`);
 
   if (problems.length === 0) {
     console.log("VERDICT ok");
