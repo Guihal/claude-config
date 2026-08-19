@@ -103,23 +103,24 @@ function quantile(sorted, q) {
  * Правило, отдающее тело всегда (`a-working-product`: нет суффикса, semantic-хак `when.none` с
  * never-match регэкспом), уже целиком сидит в измеренном пике — считать его резервом значило бы
  * заложить один и тот же расход дважды и не заложить будущее правило, ради которого резерв заведён.
+ *
+ * Кто именно «отдаёт тело каждый ход» — НЕ вычисляется предикатом над полями правила: набор полей
+ * меняется (`when` без паттернов, каденция без суффикса), и предикат тихо соврал бы на первом же
+ * новом сочетании. Это ЗАМЕР: `alwaysBody` приходит из прогона настоящего движка — правило попало
+ * туда, только если на КАЖДОМ ходу обоих сценариев оно отдало ровно своё тело.
  */
-function measureReserve(rules) {
+function measureReserve(rules, alwaysBody) {
   let best = { name: "-", delta: 0 };
   for (const rule of rules) {
-    const suffix = rule.remind?.suffix;
-    const when = rule.remind?.when;
-    const triggered = Boolean(when?.any || when?.all);
-    const everyTurn = !suffix || (when !== undefined && !triggered);
-    if (everyTurn) continue;
-    const delta = rule.body.length - suffix.length;
+    if (alwaysBody.has(rule.name)) continue;
+    const delta = rule.body.length - (rule.remind?.suffix?.length ?? 0);
     if (delta > best.delta) best = { name: rule.name, delta };
   }
   return best;
 }
 
 /** Один прогон сценария: спрос, доставка, срезы по каждому правилу. */
-async function runScenario({ name, texts, horizon, realBudget }) {
+async function runScenario({ name, texts, horizon, realBudget, rules }) {
   const demandDir = mkdtempSync(join(tmpdir(), "irsim-demand-"));
   const realDir = mkdtempSync(join(tmpdir(), "irsim-real-"));
   try {
@@ -136,6 +137,9 @@ async function runScenario({ name, texts, horizon, realBudget }) {
     const delivered = new Map();
     const cuts = new Map();
     const semanticHits = new Map();
+    // Сколько раз правило отдало ровно своё ТЕЛО (а не суффикс) — вход для measureReserve.
+    const fullBody = new Map();
+    const bodyByName = new Map(rules.map((r) => [r.name, r.body]));
 
     for (let turn = 0; turn < horizon; turn++) {
       const text = texts[turn % texts.length];
@@ -161,6 +165,10 @@ async function runScenario({ name, texts, horizon, realBudget }) {
         ),
       );
 
+      for (const applied of want.applies) {
+        if (applied.body === bodyByName.get(applied.rule))
+          fullBody.set(applied.rule, (fullBody.get(applied.rule) ?? 0) + 1);
+      }
       for (const rule of wantNames) {
         semanticHits.set(rule, (semanticHits.get(rule) ?? 0) + 1);
         if (!gotNames.has(rule)) cuts.set(rule, (cuts.get(rule) ?? 0) + 1);
@@ -179,6 +187,7 @@ async function runScenario({ name, texts, horizon, realBudget }) {
       delivered,
       cuts,
       semanticHits,
+      fullBody,
     };
   } finally {
     rmSync(demandDir, { recursive: true, force: true });
@@ -313,6 +322,7 @@ async function main() {
         texts,
         horizon: args.horizon,
         realBudget: budget,
+        rules,
       }),
     );
   }
@@ -380,13 +390,24 @@ async function main() {
   const cadences = rules.map((r) => r.remind?.every_n_turns).filter(Boolean);
   console.log(`\nLCM каденций=${lcmOf(cadences)} (горизонт ${args.horizon})`);
 
-  const reserve = measureReserve(rules);
+  const alwaysBody = new Set(
+    rules
+      .filter((r) =>
+        results.every(
+          (res) => (res.fullBody.get(r.name) ?? 0) === args.horizon,
+        ),
+      )
+      .map((r) => r.name),
+  );
+  const reserve = measureReserve(rules, alwaysBody);
   const peak = path.max;
   const recommended = Math.max(
     Math.ceil((peak + reserve.delta) / 100) * 100,
     BUDGET_FLOOR,
   );
-  console.log(`РЕЗЕРВ=${reserve.delta} (правило ${reserve.name})`);
+  console.log(
+    `РЕЗЕРВ=${reserve.delta} (правило ${reserve.name}); тело каждый ход: ${[...alwaysBody].join(", ") || "нет"}`,
+  );
   console.log(
     `рекомендация: max(ceil100(${peak} + ${reserve.delta}), пол ${BUDGET_FLOOR}) = ${recommended}`,
   );
@@ -402,7 +423,9 @@ async function main() {
     `состояние симулятора в боевом каталоге: ${leaked.length === 0 ? "нет (ok)" : leaked.join(", ")}`,
   );
   if (leaked.length > 0)
-    problems.push(`симулятор задел боевой каталог состояния: ${leaked.join(", ")}`);
+    problems.push(
+      `симулятор задел боевой каталог состояния: ${leaked.join(", ")}`,
+    );
 
   if (problems.length === 0) {
     console.log("VERDICT ok");
