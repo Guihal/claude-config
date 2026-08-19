@@ -44,7 +44,7 @@
     ],
     "defaultMode": "bypassPermissions"
   },
-  "model": "opus",
+  "model": "sonnet",
   "hooks": {
     "SessionStart": [
       {
@@ -95,6 +95,17 @@
             "command": "/home/penis/.bun/bin/bun /home/penis/.claude/hooks/lint-inject-posttoolbatch.mjs",
             "timeout": 15,
             "statusMessage": "Linting..."
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/penis/.bun/bin/bun /home/penis/.claude/hooks/injection-rules-posttooluse.mjs 2>/dev/null || true",
+            "timeout": 5
           }
         ]
       }
@@ -183,11 +194,11 @@
     }
   },
   "alwaysThinkingEnabled": true,
-  "effortLevel": "xhigh",
+  "effortLevel": "medium",
   "autoCompactWindow": 400000,
   "autoMemoryEnabled": true,
   "skipDangerousModePermissionPrompt": true,
   "theme": "dark",
-  "skipAutoPermissionPrompt": true,
-  "agentPushNotifEnabled": true
+  "agentPushNotifEnabled": true,
+  "skipAutoPermissionPrompt": true
 }
