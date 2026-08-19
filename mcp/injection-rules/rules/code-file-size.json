@@ -8,9 +8,10 @@
     "!escalation-advisor-(pi-agent)",
     "!researcher"
   ],
+  "_tier": "T3",
   "body": "[code-file-size]\nDO: файл кода ≤150 строк, больше — дели по смыслу (слой, модуль, тип, утилита): один файл — одна ответственность.\nDO: исключение только для неделимого (таблица констант/данных, конфиг-маппинг, один enum) — причину пиши в комментарии.\nDO: .md и прочие не-код файлы правилу не подчиняются.\nDO: компилируемые языки (Rust, C/C++, Go, Java, Kotlin) дроби по максимуму, где не ломает сборку: модули/пакеты, инлайн-модули в Rust, пакеты в Go.",
   "remind": {
-    "every_n_turns": 19,
+    "every_n_turns": 50,
     "suffix": "\n\n[code-file-size-remind] Файл кода ≤150 строк, больше — дели по смыслу (слой/модуль/тип). Исключение — только неделимые данные, с причиной в комментарии. .md не считается."
   },
   "_comment": "Ported from ~/.pi/agent/rules/code-file-size.json (2026-08-09, wave W1). pi remind keys priority/on_user_end/every_input are not read by the CC engine — replaced with an explicit every_n_turns=19."

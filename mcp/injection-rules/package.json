@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "type": "module",
   "private": true,
+  "scripts": {
+    "build": "bun build --target=bun --outfile=daemon.js daemon.ts"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0"
   }

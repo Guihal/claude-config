@@ -9,9 +9,10 @@
     "!researcher",
     "!auditor"
   ],
+  "_tier": "T3",
   "body": "[agents-md-update]\nDO: выяснил важное для будущих агентов — обнови AGENTS.md (глобальный ~/AGENTS.md или проектный): факты об окружении, процедуры, предпочтения юзера.\nDON'T: ничего нового не узнал — не трогай.",
   "remind": {
-    "every_n_turns": 25,
+    "every_n_turns": 61,
     "suffix": "\n\n[напоминание] Узнал важное для будущих агентов — впиши в AGENTS.md (глобальный/проектный). Ничего нового — не трогай."
   },
   "_comment": "Ported from ~/.pi/agent/rules/agents-md-update.json (2026-08-09, wave W1). pi remind keys priority/on_user_end/every_input are not read by the CC engine — replaced with an explicit every_n_turns=25."

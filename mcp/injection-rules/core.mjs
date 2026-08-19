@@ -10,19 +10,51 @@ const RULES_DIR =
 const STATE_DIR =
   process.env.STATE_DIR || "/home/penis/.claude/mcp/injection-rules";
 const BUFFER_CAP = 30;
-// 2026-08-10: 2000 → 3600. a-working-product инжектится на каждом тике (952 симв.),
-// ab-verify-recipes — раз в 11 ходов (593 симв.). Замер по реальному каталогу:
-// чтобы ни одно правило не срезалось на горизонте 1320 ходов, нужно 3551.
-// 2026-08-10: 3600 → 4200 (добавлено task-list, каденс 1) → 5400. После вычистки
-// 10 правил (why-rule, task-triggers, 8 skill-*-hint) пиковый спрос упал: фактический
-// сценарий 3831, патологический (все semantic в один ход) 5082 вместо 7789. 5400 =
-// патологический пик + 318, т.е. теперь ОБА сценария без срезов. Замер:
-// scratchpad/budget-sim.py — симулирует сортировку и отбор ниже на реальном каталоге.
-// ВАЖНО: бюджет отбора — не единственный лимит. Хук доставки режет собственный вывод,
-// поэтому injection-rules-userprompt.mjs обязан передавать этот же CHAR_BUDGET в
-// emitHook; с дефолтом 2000 нудж task-list молча обрезался на 40 ходах из 200.
+// Потолок отбора: сколько символов правил движок отдаёт за один ход.
+//
+// Число НЕ выбирается на глаз и НЕ переписывается по памяти — его считает симулятор в этой же
+// репе: `node tools/budget-sim.mjs --horizon 10000` печатает пик спроса, РЕЗЕРВ и рекомендацию
+// `max(ceil100(пик + РЕЗЕРВ), 5500)`. Прежний комментарий держал замеры от 2026-08-10 и ссылался
+// на `scratchpad/budget-sim.py`, которого больше нет: методика потерялась вместе с файлом, а числа
+// перестали воспроизводиться. Поэтому здесь — путь к работающей команде, а не список чисел.
+//
+// Замер 2026-08-19 (30 правил, каденции назначены поиском `--assign`): пик патологического
+// сценария 3486, РЕЗЕРВ 1266 (`a-working-product` отдаёт тело всегда — у него нет суффикса),
+// срезов 0 на 10000 ходов в обоих сценариях. Рекомендация упёрлась в пол 5500 — он и стоит.
+// Устарело — не правь число руками, перезапусти симулятор.
+//
+// ВАЖНО: бюджет отбора — не единственный лимит. Хук доставки режет собственный вывод, поэтому
+// injection-rules-userprompt.mjs обязан передавать этот же CHAR_BUDGET в emitHook; с дефолтом
+// 2000 нудж task-list молча обрезался на 40 ходах из 200.
 // К стартовому своду (startupRules + SessionStart-хук) бюджет НЕ применяется.
-export const CHAR_BUDGET = 5400;
+export const CHAR_BUDGET_DEFAULT = 5500;
+
+// Лимит читается из env, потому что симулятор (tools/budget-sim.mjs) обязан измерить СПРОС —
+// сколько правил хотели доставить, — а при боевом лимите отбор ниже молча клипует кандидатов, и
+// спрос из движка уже не достать, не продублировав логику отбора. Дубль неизбежно разъедется:
+// именно так потерялась прежняя методика замера (см. историю числа выше).
+// ПРОД-ПУТЬ ОДИН: env не задан → CHAR_BUDGET_DEFAULT. Невалидное значение → дефолт + строка в
+// stderr; бросать на загрузке нельзя — это убило бы хук, а с ним всю инъекцию.
+function readCharBudget() {
+  const raw = process.env.IR_CHAR_BUDGET;
+  if (raw === undefined || raw === "") return CHAR_BUDGET_DEFAULT;
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    console.error(
+      `[injection-rules] IR_CHAR_BUDGET=${raw} невалиден (нужно целое ≥ 1), беру дефолт ${CHAR_BUDGET_DEFAULT}`,
+    );
+    return CHAR_BUDGET_DEFAULT;
+  }
+  console.error(`[injection-rules] IR_CHAR_BUDGET override: ${parsed}`);
+  return parsed;
+}
+
+export const CHAR_BUDGET = readCharBudget();
+
+// Разовая доставка набора при спавне субагента — НЕ пер-тиковый лимит, поэтому своя константа.
+// Смешать их — повторить ошибку, из-за которой лимит отбора и лимит emitHook когда-то разъехались.
+// 10000 = замеренный набор 8738 + запас ≈14% на одно правило среднего размера и на редактуру тел.
+export const SUBAGENT_CHAR_BUDGET = 10000;
 const VALID_SOURCES = new Set([
   "user_only",
   "assistant_only",
@@ -103,6 +135,17 @@ function makeRule(json) {
   }
   const sendOnStart = json.send_on_start !== false;
 
+  // send_on_subagent: тело правила уходит субагенту при спавне (см. subagentRules).
+  // Дефолт FALSE, зеркально send_on_start: слать роли весь свод запрещено (REQ-10), набор
+  // собирается opt-in — правило само объявляет, что нужно роли, а не хук решает за него.
+  if (
+    json.send_on_subagent !== undefined &&
+    typeof json.send_on_subagent !== "boolean"
+  ) {
+    throw new Error("send-on-subagent-not-boolean");
+  }
+  const sendOnSubagent = json.send_on_subagent === true;
+
   let remindEvery, remindSuffix;
   let remindAny = [],
     remindAll = [],
@@ -154,6 +197,7 @@ function makeRule(json) {
     source,
     cooldownTurns,
     sendOnStart,
+    sendOnSubagent,
   };
 }
 
@@ -263,6 +307,14 @@ export function startupRules(agentId = "main") {
   return loadRules().filter((r) => r.sendOnStart && applyRule(r, agentId));
 }
 
+/**
+ * Набор правил для роли субагента: зеркало startupRules, та же логика отбора по apply.
+ * Пусто — штатный ответ (роль не объявлена ни в одном правиле), а не ошибка.
+ */
+export function subagentRules(agentType) {
+  return loadRules().filter((r) => r.sendOnSubagent && applyRule(r, agentType));
+}
+
 export function getRule(name) {
   return loadRules().find((r) => r.name === name) || null;
 }
@@ -272,19 +324,27 @@ export function status() {
     rules_count: loadRules().length,
     sessions_count: _sessions.size,
     uptime_ms: Date.now() - _startedAt,
+    // Наружу — чтобы паритет лимита у MCP-сервера (собранный бандл) и у хуков (импорт core.mjs)
+    // можно было проверить командой, а не верой в то, что бандл пересобран.
+    char_budget: CHAR_BUDGET,
   };
 }
 
 export function applyRule(rule, agentId = "main") {
-  if (rule.excludes.has(agentId)) return false;
-  return rule.wildcard || rule.includes.has(agentId);
+  // Роль приводится к нижнему регистру ЗДЕСЬ, а не у вызывающих: `apply` разбирается в нижний
+  // регистр, а agent_type приходит из payload как есть, поэтому applyRule(rule, "Intent-Auditor")
+  // без нормализации возвращал true там, где "intent-auditor" даёт false — исключение молча не
+  // срабатывало. Через эту функцию ходят startupRules, subagentRules и отбор тика: одно место.
+  const id = String(agentId).toLowerCase();
+  if (rule.excludes.has(id)) return false;
+  return rule.wildcard || rule.includes.has(id);
 }
 
 export function compileMatcher(pat) {
   return compilePattern(pat);
 }
 
-export function evaluate({ sessionId, source, text, tick }) {
+export function evaluate({ sessionId, source, text, tick, agentId = "main" }) {
   if (!sessionId) throw new Error("sessionId-required");
   if (!["user", "assistant", "tool"].includes(source))
     throw new Error("source-invalid");
@@ -303,7 +363,6 @@ export function evaluate({ sessionId, source, text, tick }) {
     state.turnIndex++;
     const rules = loadRules();
     const candidates = [];
-    const agentId = "main";
 
     for (const rule of rules) {
       if (!applyRule(rule, agentId)) continue;
@@ -357,7 +416,6 @@ export function evaluate({ sessionId, source, text, tick }) {
           body,
           _priority: ruleHasSemantic(rule) ? 1 : 0,
         });
-        state.cooldown[rule.name] = state.turnIndex;
       }
     }
 
@@ -372,19 +430,44 @@ export function evaluate({ sessionId, source, text, tick }) {
     // результат с этим же CHAR_BUDGET, поэтому стыки считаем здесь: иначе отбор говорит
     // «влезло», а emitHook молча срезает хвост последнего правила.
     const applies = [];
+    const dropped = [];
     let totalChars = 0;
+    let demand = 0;
     for (const c of candidates) {
+      demand += (demand ? 2 : 0) + c.body.length;
       const sep = applies.length ? 2 : 0;
-      if (totalChars + sep + c.body.length > CHAR_BUDGET) continue;
+      if (totalChars + sep + c.body.length > CHAR_BUDGET) {
+        dropped.push(c.rule);
+        continue;
+      }
       applies.push({ rule: c.rule, body: c.body });
       totalChars += sep + c.body.length;
+      // Штамп cooldown ставится ТОЛЬКО доставленному правилу. Раньше он стоял в цикле кандидатов,
+      // и срезанное бюджетом правило замолкало ещё на cooldown_turns ходов, ни разу не долетев:
+      // потеря удваивалась и была невидима.
+      state.cooldown[c.rule] = state.turnIndex;
+    }
+
+    // Лимит не имеет права протухать молча (REQ-12): при срезе — строка в stderr и след в
+    // состоянии сессии. stderr виден под `claude --debug`, state.*.json лежит на диске и
+    // переживает сессию. console.error не бросает при закрытом fd 2, поэтому хук не ломается.
+    if (dropped.length > 0) {
+      state.lastOverflow = {
+        turn: state.turnIndex,
+        demand,
+        budget: CHAR_BUDGET,
+        dropped,
+      };
+      console.error(
+        `[injection-rules] budget-overflow: turn=${state.turnIndex} budget=${CHAR_BUDGET} demand=${demand} dropped=${dropped.join(",")}`,
+      );
     }
 
     saveState(sessionId, state);
-    return { applies, turnIndex: state.turnIndex };
+    return { applies, dropped, turnIndex: state.turnIndex };
   }
 
   // no tick → just buffer
   saveState(sessionId, state);
-  return { applies: [], turnIndex: state.turnIndex };
+  return { applies: [], dropped: [], turnIndex: state.turnIndex };
 }

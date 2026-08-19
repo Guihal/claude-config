@@ -4,9 +4,10 @@
     "*",
     "!intent-auditor"
   ],
+  "_tier": "T1",
   "body": "[no-unrequested-work]\nDO: без запроса юзера НЕ предлагай и НЕ начинай работу («давай сделаем то-то» запрещено).\nDO: баг ВОСПРОИЗВОДИТСЯ (есть команда/тест/сценарий) — ЧИНИ сразу, тем же диффом, ГДЕ БЫ ОН НИ ЛЕЖАЛ. Это НЕ unrequested-work.\nDON'T: out-of-scope как причина не чинить НЕ СУЩЕСТВУЕТ. Прятать баг в TODO/комментарий, переносить «на следующую задачу», упоминать в отчёте вместо фикса — запрещено.\nDO: починил — назови отдельной строкой отчёта: что было, где, чем чинил, чем воспроизводится.\nDO: не воспроизвёл — это гипотеза: назови в отчёте, не трогай.\nDO: фикс требует risk-tier действия (миграция, prod, security, destructive) — сначала подтверждение у юзера.\nDO: вопрос очевиден или проверяем самостоятельно (файлы, тулы, скиллы) — ПРОВЕРЯЙ сам, не спрашивай; не проверяем — СПРАШИВАЙ, не домысливай.\nDO: была задача — ОТЧИТАЙСЯ статусом.",
   "remind": {
-    "every_n_turns": 8,
+    "every_n_turns": 17,
     "suffix": "\n\n[напоминание] Работу без запроса не начинай и не предлагай. НО воспроизводимый баг чини сразу и где угодно — out-of-scope не отговорка; назови фикс в отчёте, не прячь в TODO. Не воспроизвёл — гипотеза. Проверяемое проверяй сам."
   },
   "_comment": "Ported from ~/.pi/agent/rules/no-unrequested-work.json (2026-08-09, wave W1). pi remind keys priority/on_user_end/every_input are not read by the CC engine — replaced with an explicit every_n_turns=8. 2026-08-09 (user): added the related-bug clause — a bug spotted in code you are already touching must be fixed, not deferred; matches the 'Related-bug fixes are in scope' section already carried by the verifier and crystal-reviewer agents. Suffix added at the same time so the cadence tick injects 300 chars instead of the full body."

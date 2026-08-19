@@ -7,6 +7,7 @@
     "!task-worker",
     "!intent-auditor"
   ],
+  "send_on_start": false,
   "window": 1,
   "body": "[layout-skills-hint]\nЛюбая вёрстка — читай скилл: mcp-inspector-workflow (MCP ground truth, primary), ui-standards (законы UI), ui-audit (axe-core + overflow + touch-targets), css-architecture (организация стилей), responsive-derive (мобайл из десктопа), lost-pixel (регрессия, только если в репо есть tools/lost-pixel/).\nПеред ЛЮБОЙ верификацией вёрстки (DOM, layout, computed styles, visibility, каскад, селекторы, pixel-perfect, before/after) прочитай `mcp-inspector-workflow` ЦЕЛИКОМ, потом бери ground truth из живого браузера: `mcp__web-inspector__*` (check_visibility, measure_element, inspect_ancestors, get_computed_styles, query_selector, inspect_dom) или `mcp__browser-inspector__browser_inspect` (action=dom|styles|diff|screenshot, local-dev only).\nOff-token цвета/радиусы/отступы → `mcp__swatchdog__check_design_drift`. Цикл edit-verify-edit-verify: edit-driven для worker, artifact-driven для checker. Не угадывай — браузер живой. Скилл уже прочитан в этой сессии — повторно не нужно.",
   "remind": {

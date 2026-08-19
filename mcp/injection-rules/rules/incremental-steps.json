@@ -4,9 +4,10 @@
     "*",
     "!intent-auditor"
   ],
-  "body": "[incremental-steps]\nПиши инкрементально: маленький шаг → проверка → следующий шаг.\n- НЕ пиши 500 строк «потом проверю».\n- Ошибка тула — читай ошибку и меняй подход, НЕ ретрай те же аргументы.\n- Черновики/секреты не коммить — .gitignore тем же диффом.",
+  "_tier": "T3",
+  "body": "[incremental-steps]\nПиши инкрементально: маленький шаг → проверка → следующий шаг.\n- НЕ пиши 500 строк «потом проверю».\n- Ошибка тула — читай ошибку и меняй подход, НЕ ретрай те же аргументы.",
   "remind": {
-    "every_n_turns": 16,
+    "every_n_turns": 41,
     "suffix": "\n\n[напоминание] Пиши инкрементально: шаг → проверка → следующий. Ошибка тула — смена подхода, не ретрай."
   },
   "_comment": "Ported from ~/.pi/agent/rules/incremental-steps.json (2026-08-09, wave W1). pi remind keys priority/on_user_end/every_input are not read by the CC engine — replaced with an explicit every_n_turns=16."

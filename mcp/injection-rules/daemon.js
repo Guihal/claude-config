@@ -14078,7 +14078,20 @@ import { createHash } from "crypto";
 var RULES_DIR = process.env.RULES_DIR || "/home/penis/.claude/mcp/injection-rules/rules";
 var STATE_DIR = process.env.STATE_DIR || "/home/penis/.claude/mcp/injection-rules";
 var BUFFER_CAP = 30;
-var CHAR_BUDGET = 5400;
+var CHAR_BUDGET_DEFAULT = 5500;
+function readCharBudget() {
+  const raw = process.env.IR_CHAR_BUDGET;
+  if (raw === undefined || raw === "")
+    return CHAR_BUDGET_DEFAULT;
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    console.error(`[injection-rules] IR_CHAR_BUDGET=${raw} \u043D\u0435\u0432\u0430\u043B\u0438\u0434\u0435\u043D (\u043D\u0443\u0436\u043D\u043E \u0446\u0435\u043B\u043E\u0435 \u2265 1), \u0431\u0435\u0440\u0443 \u0434\u0435\u0444\u043E\u043B\u0442 ${CHAR_BUDGET_DEFAULT}`);
+    return CHAR_BUDGET_DEFAULT;
+  }
+  console.error(`[injection-rules] IR_CHAR_BUDGET override: ${parsed}`);
+  return parsed;
+}
+var CHAR_BUDGET = readCharBudget();
 var VALID_SOURCES = new Set([
   "user_only",
   "assistant_only",
@@ -14290,7 +14303,8 @@ function status() {
   return {
     rules_count: loadRules().length,
     sessions_count: _sessions.size,
-    uptime_ms: Date.now() - _startedAt
+    uptime_ms: Date.now() - _startedAt,
+    char_budget: CHAR_BUDGET
   };
 }
 function applyRule(rule, agentId = "main") {
@@ -14353,7 +14367,6 @@ function evaluate({ sessionId, source, text, tick }) {
           body,
           _priority: ruleHasSemantic(rule) ? 1 : 0
         });
-        state.cooldown[rule.name] = state.turnIndex;
       }
     }
     candidates.sort((a, b) => {
@@ -14362,19 +14375,34 @@ function evaluate({ sessionId, source, text, tick }) {
       return a.rule < b.rule ? -1 : a.rule > b.rule ? 1 : 0;
     });
     const applies = [];
+    const dropped = [];
     let totalChars = 0;
+    let demand = 0;
     for (const c of candidates) {
+      demand += (demand ? 2 : 0) + c.body.length;
       const sep = applies.length ? 2 : 0;
-      if (totalChars + sep + c.body.length > CHAR_BUDGET)
+      if (totalChars + sep + c.body.length > CHAR_BUDGET) {
+        dropped.push(c.rule);
         continue;
+      }
       applies.push({ rule: c.rule, body: c.body });
       totalChars += sep + c.body.length;
+      state.cooldown[c.rule] = state.turnIndex;
+    }
+    if (dropped.length > 0) {
+      state.lastOverflow = {
+        turn: state.turnIndex,
+        demand,
+        budget: CHAR_BUDGET,
+        dropped
+      };
+      console.error(`[injection-rules] budget-overflow: turn=${state.turnIndex} budget=${CHAR_BUDGET} demand=${demand} dropped=${dropped.join(",")}`);
     }
     saveState(sessionId, state);
-    return { applies, turnIndex: state.turnIndex };
+    return { applies, dropped, turnIndex: state.turnIndex };
   }
   saveState(sessionId, state);
-  return { applies: [], turnIndex: state.turnIndex };
+  return { applies: [], dropped: [], turnIndex: state.turnIndex };
 }
 
 // daemon.ts

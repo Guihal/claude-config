@@ -4,9 +4,10 @@
     "*",
     "!intent-auditor"
   ],
-  "body": "[git-hygiene]\nDO: коммить мелкими осмысленными порциями, в сообщении — что и почему.\nDO: секреты — в .gitignore тем же диффом.\nDON'T: коммитить секреты.",
+  "_tier": "T3",
+  "body": "[git-hygiene]\nDO: коммить мелкими осмысленными порциями, в сообщении — что и почему.\nDO: черновики и секреты не коммить — .gitignore тем же диффом (security-baseline).",
   "remind": {
-    "every_n_turns": 23,
+    "every_n_turns": 59,
     "suffix": "\n\n[напоминание] Коммить мелко и осмысленно; секреты — в .gitignore тем же диффом."
   },
   "_comment": "Ported from ~/.pi/agent/rules/git-hygiene.json (2026-08-09, wave W1). pi remind keys priority/on_user_end/every_input are not read by the CC engine — replaced with an explicit every_n_turns=23."

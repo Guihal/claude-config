@@ -9,9 +9,10 @@
     "!researcher",
     "!auditor"
   ],
-  "body": "[rule-announce-execute]\nDO: intent ясен — ВЫПОЛНЯЙ, не уточняй. ≥2 интерпретаций — выбери conservative и ОБЪЯВИ выбор явно.\nDO: tool-choice (тесты / typecheck / lint) — решай сам, агентская прерогатива.\nDO: после каждого tool call ПРОВЕРЬ результат перед следующим.\nDO: визуал или рендер без oracle — СТОП, выдай артефакт + «что смотреть».\nDO: неинтерактивный режим — critic как gate перед output.\nDO: ошибку признавай прямо, не прячь. Поправка юзера о факте старше твоего вывода.\nDO: объясняй развёрнуто, БЕЗ caveman-телеграфа (юзер 2026-08-04: «в caveman я вообще нихуя не понимаю»).\nDO: handoff — брифом, не совещанием.",
+  "_tier": "T2",
+  "body": "[rule-announce-execute]\nDO: intent ясен — ВЫПОЛНЯЙ, не уточняй. ≥2 интерпретаций — выбери conservative и ОБЪЯВИ выбор явно.\nDO: tool-choice (тесты / typecheck / lint) — решай сам, агентская прерогатива.\nDO: неинтерактивный режим — critic как gate перед output.\nDO: ошибку признавай прямо, не прячь. Поправка юзера о факте старше твоего вывода.\nDO: объясняй развёрнуто, БЕЗ caveman-телеграфа (юзер 2026-08-04: «в caveman я вообще нихуя не понимаю»).\nDO: handoff — брифом, не совещанием.",
   "remind": {
-    "every_n_turns": 9,
+    "every_n_turns": 23,
     "suffix": "\n\n[announce-execute-remind] Intent ясен — ВЫПОЛНЯЙ. ≥2 интерпретаций — conservative + ОБЪЯВИ выбор. После каждого tool call ПРОВЕРЬ результат. Ошибку признавай прямо; поправка юзера старше твоего вывода."
   },
   "_comment": "Ported from ~/.pi/agent/rules/rule-announce-execute.json (2026-08-09, wave W1). pi remind keys priority/on_user_end/every_input are not read by the CC engine — replaced with an explicit every_n_turns=9."
