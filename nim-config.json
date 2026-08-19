@@ -1,0 +1,9 @@
+{
+  "port": 9099,
+  "aliases": {
+    "opus": "nvidia/nemotron-3-ultra-550b-a55b",
+    "sonnet": "stepfun-ai/step-3.7-flash",
+    "haiku": "mistralai/mistral-medium-3.5-128b"
+  },
+  "strip_thinking": true
+}

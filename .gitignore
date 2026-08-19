@@ -1,0 +1,58 @@
+# =============================================================
+# ~/.claude — gitignore
+# Конфигурация, правила и код харнесса в репе; runtime, кэши и секреты — мимо.
+# ВАЖНО: git не поддерживает inline-комментарии — только строки с #.
+#
+# Модель: КОРЕНЬ ВЕСЬ ИГНОРИРУЕТСЯ, нужное открывается точечно ниже.
+# Причина: Claude Code сам заводит новые каталоги в ~/.claude при обновлениях
+# (sessions, telemetry, file-history, paste-cache...). При блеклисте каждый
+# такой каталог молча попадал бы в репу вместе с транскриптами и токенами.
+# Цена решения: новый КОНФИГ-каталог надо открыть здесь руками.
+# =============================================================
+
+/*
+
+# --- Конфиг и документация ---
+!/.gitignore
+!/.agentignore
+!/AGENTS.md
+!/CLAUDE.md
+!/settings.json
+!/nim-config.json
+
+# --- Роли, команды, хуки, скиллы, скрипты ---
+!/agents/
+!/commands/
+!/hooks/
+!/skills/
+!/scripts/
+
+# --- Заметки и рабочие документы ---
+!/docs/
+!/notes/
+!/design/
+!/memory/
+
+# --- MCP-серверы: исходники ---
+!/mcp/
+mcp/*/node_modules/
+mcp/*/logs/
+mcp/*/state/
+mcp/*/tests/fixtures/tmp/
+mcp/injection-rules/state.*.json
+
+# --- Плагины: только манифесты, без marketplace-клонов и кэша ---
+!/plugins/
+plugins/*
+!plugins/installed_plugins.json
+!plugins/known_marketplaces.json
+
+# --- Общий мусор ---
+node_modules/
+__pycache__/
+*.pyc
+*.bak-*
+*.removed-*
+*.disabled-*
+*.log
+.DS_Store

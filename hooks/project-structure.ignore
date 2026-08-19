@@ -1,0 +1,129 @@
+# project-structure.ignore — entries that never appear in the tree.
+# Ported from ~/.pi/agent/extensions/project-structure.ignore (2026-08-10).
+#
+# Gitignore-style: comments with #, * ? [abc] globs, trailing / for dir-only,
+# ! prefix to re-include a previously excluded pattern.
+#
+# Note: this file is matched per-entry basename (single segment). The
+# `**/foo` form is not supported — list each matching pattern flat instead.
+
+# --- Build outputs ---
+dist/
+build/
+out/
+target/
+.next/
+.nuxt/
+.output/
+.turbo/
+.gradle/
+.angular/
+
+# --- Caches (broad) ---
+cache/
+.cache/
+*.cache
+*.cache/
+.*-cache/
+.eslintcache
+.rspack-cache/
+.parcel-cache/
+.tsbuildinfo
+.mypy_cache/
+.ruff_cache/
+.terraform/
+.vite/
+.rollup.cache/
+.phpunit.cache/
+.phpunit.result.cache
+.metals/
+.bloop/
+.bsp/
+.coursier/
+.ivy2/
+.m2/
+.elixir_ls/
+.mix/
+.cargo/
+.swiftpm/
+.dart_tool/
+.docusaurus/
+.vuepress/
+.terragrunt-cache/
+.vagrant/
+
+# --- Dependency managers ---
+node_modules/
+vendor/
+bower_components/
+.bundle/
+_build/
+deps/
+
+# --- Test / coverage ---
+coverage/
+.coverage/
+.nyc_output/
+
+# --- Python ---
+__pycache__/
+.venv/
+venv/
+*.egg-info/
+*.pyc
+*.pyo
+*.pyd
+
+# --- Generic temp / log (debatable — usually generated, sometimes source) ---
+tmp/
+temp/
+logs/
+
+# --- Xcode / Swift / .NET / Visual Studio ---
+obj/
+.vs/
+xcuserdata/
+DerivedData/
+.build/
+
+# --- Static site generators ---
+_site/
+
+# --- Editor / IDE / tooling state ---
+.git/
+.pi/
+.codex/
+.claude/
+.svn/
+.hg/
+.idea/
+.vscode/
+.direnv/
+*.swp
+*.tmp
+*.bak
+*.iml
+*~
+*.orig
+*.rej
+
+# --- Secrets (always-hidden) ---
+.ssh/
+.aws/
+.kube/
+.gnupg/
+.docker/
+
+# --- OS junk ---
+.DS_Store
+Thumbs.db
+
+# --- Agent tooling artifacts ---
+.playwright-mcp/
+.pi-subagents/
+backups/
+
+# --- WordPress: core + media, never hand-edited ---
+wp-admin/
+wp-includes/
+uploads/

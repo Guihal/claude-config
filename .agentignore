@@ -1,0 +1,94 @@
+# Global agent-ignore. Symlink/copy в каждый репо при необходимости.
+# Любой AI-tool (Claude Code, Codex, Cursor, Aider, kimi-claude) — не читать.
+
+# Secrets
+.envrc
+secrets/
+**/credentials.json
+**/service-account*.json
+*.pem
+*.key
+!*.pub.key
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+.ssh/
+
+# Tokens / auth state
+.netrc
+.git-credentials
+.npmrc
+**/auth_token*
+**/access_token*
+**/refresh_token*
+cliproxy/auths/
+cliproxy/config.yaml
+.claude/.credentials.json
+
+# Lockfiles (read только при dep audit / явная просьба)
+bun.lock
+bun.lockb
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+Cargo.lock
+poetry.lock
+Pipfile.lock
+uv.lock
+composer.lock
+Gemfile.lock
+go.sum
+
+# Generated / build artefacts
+node_modules/
+dist/
+build/
+out/
+.next/
+.nuxt/
+.svelte-kit/
+.turbo/
+.cache/
+target/
+__pycache__/
+*.pyc
+.pytest_cache/
+.tsbuildinfo
+*.tsbuildinfo
+
+# Voluminous data / DB / media
+data/*.db
+data/*.db-*
+*.sqlite
+*.sqlite3
+*.duckdb
+*.parquet
+*.arrow
+*.bin
+*.onnx
+*.gguf
+*.safetensors
+storage/
+uploads/
+fixtures/large/
+**/*.dump
+**/*.bak
+
+# Logs / traces
+*.log
+logs/
+.langfuse/
+.phoenix/
+traces/
+
+# IDE / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/settings.json
+*.swp
+
+# Vault personal data (не для агентов вне subbrain context)
+~/vault/private/
+~/vault/journal/

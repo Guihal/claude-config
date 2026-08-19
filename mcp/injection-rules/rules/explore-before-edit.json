@@ -1,0 +1,13 @@
+{
+  "name": "explore-before-edit",
+  "apply": [
+    "*",
+    "!intent-auditor"
+  ],
+  "body": "[explore-before-edit]\nDO: до правок прочитай файл и структуру — Read / Glob / Grep по затрагиваемым путям (структура проекта — скилл project-tree), пойми устройство кода, потом меняй.\nDO: исследуй без правок — исследование не деструктивно.\nDON'T: прыгать в код сразу.",
+  "remind": {
+    "every_n_turns": 11,
+    "suffix": "\n\n[напоминание] Исследуй перед правкой: Read / Glob / Grep по затрагиваемым путям, пойми структуру, потом меняй. Новый файл — правь сразу."
+  },
+  "_comment": "Ported from ~/.pi/agent/rules/explore-before-edit.json (2026-08-09, wave W1). pi remind keys priority/on_user_end/every_input are not read by the CC engine — replaced with an explicit every_n_turns=11."
+}
