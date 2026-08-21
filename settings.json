@@ -44,7 +44,7 @@
     ],
     "defaultMode": "bypassPermissions"
   },
-  "model": "sonnet",
+  "model": "opus",
   "hooks": {
     "SessionStart": [
       {
@@ -54,11 +54,6 @@
             "command": "/home/penis/.bun/bin/bun \"/home/penis/.claude/hooks/project-structure.mjs\" --hook 2>/dev/null || true",
             "timeout": 15,
             "statusMessage": "Building project tree..."
-          },
-          {
-            "type": "command",
-            "command": "/home/penis/.bun/bin/bun \"/home/penis/.claude/hooks/tdai-memory-sessionstart.mjs\" 2>/dev/null || true",
-            "timeout": 10
           },
           {
             "type": "command",
@@ -119,15 +114,6 @@
             "timeout": 5
           }
         ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "/home/penis/.bun/bin/bun /home/penis/.claude/hooks/tdai-memory-userprompt.mjs",
-            "timeout": 6
-          }
-        ]
       }
     ],
     "Stop": [
@@ -136,15 +122,6 @@
           {
             "type": "command",
             "command": "/home/penis/.bun/bin/bun /home/penis/.claude/hooks/injection-rules-stop.mjs",
-            "timeout": 5
-          }
-        ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "/home/penis/.bun/bin/bun /home/penis/.claude/hooks/tdai-memory-stop.mjs",
             "timeout": 5
           }
         ]
