@@ -44,7 +44,7 @@
     ],
     "defaultMode": "bypassPermissions"
   },
-  "model": "opus",
+  "model": "claude-opus-4-8",
   "hooks": {
     "SessionStart": [
       {
@@ -174,10 +174,10 @@
   "effortLevel": "medium",
   "autoCompactWindow": 600000,
   "autoMemoryEnabled": true,
+  "autoMemoryDirectory": "~/.claude/memory",
   "autoDreamEnabled": true,
   "skipDangerousModePermissionPrompt": true,
   "theme": "dark",
   "agentPushNotifEnabled": true,
-  "skipAutoPermissionPrompt": true,
-  "autoMemoryDirectory": "~/.claude/memory"
+  "skipAutoPermissionPrompt": true
 }
