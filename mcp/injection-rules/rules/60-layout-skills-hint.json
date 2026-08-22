@@ -1,0 +1,47 @@
+{
+  "name": "60-layout-skills-hint",
+  "apply": [
+    "*",
+    "!critic",
+    "!task-worker",
+    "!intent-auditor"
+  ],
+  "send_on_start": false,
+  "window": 1,
+  "_derives": "ideal-agent.md → Он не ленится читать; Он доводит до работающего",
+  "body": "[60-layout-skills-hint]\nЛюбая вёрстка — читай скилл: mcp-inspector-workflow (MCP ground truth, primary), ui-standards (законы UI), ui-audit (axe-core + overflow + touch-targets), css-architecture (организация стилей), responsive-derive (мобайл из десктопа), lost-pixel (регрессия, только если в репо есть tools/lost-pixel/).\nПеред ЛЮБОЙ верификацией вёрстки (DOM, layout, computed styles, visibility, каскад, селекторы, pixel-perfect, before/after) прочитай `mcp-inspector-workflow` ЦЕЛИКОМ, потом бери ground truth из живого браузера: `mcp__web-inspector__*` (check_visibility, measure_element, inspect_ancestors, get_computed_styles, query_selector, inspect_dom) или `mcp__browser-inspector__browser_inspect` (action=dom|styles|diff|screenshot, local-dev only).\nOff-token цвета/радиусы/отступы → `mcp__swatchdog__check_design_drift`. Цикл edit-verify-edit-verify: edit-driven для worker, artifact-driven для checker. Не угадывай — браузер живой. Скилл уже прочитан в этой сессии — повторно не нужно.",
+  "remind": {
+    "suffix": "\n\n[60-layout-skills-hint] Любая вёрстка — читай скилл: mcp-inspector-workflow + ui-standards + ui-audit + css-architecture. Перед верификацией вёрстки бери ground truth через `mcp__web-inspector__*` / `mcp__browser-inspector__browser_inspect`. Не угадывай.",
+    "when": {
+      "any": [
+        "верстка",
+        "вёрстка",
+        "layout",
+        "стили",
+        "CSS",
+        "DOM",
+        "каскад",
+        "computed",
+        "видимость",
+        "селектор",
+        "pixel-perfect",
+        "match design",
+        "overflow",
+        "touch-target",
+        "верификация",
+        "проверить вёрстку",
+        "проверка",
+        "инспектор",
+        "mcp-web-inspector",
+        "browser-inspector",
+        "ground truth",
+        "до инспектор",
+        "verify",
+        "inspection"
+      ],
+      "source": "user_only",
+      "cooldown_turns": 8
+    }
+  },
+  "_comment": "Перенесено КАК ЕСТЬ из layout-skills-hint вместе с механикой: семантический триггер по маркерам в реплике юзера, source user_only, cooldown_turns 8, window 1, send_on_start false. Слияний у правила нет — адресаты (apply, send_on_subagent) не менялись. Единственное отличие от прежнего файла — имя с числовым префиксом, продублированным в поле name, чтобы порядок загрузки и порядок отбора (алфавит по rule.name) совпадали. Имена MCP-тулов здесь оставлены намеренно, в отличие от 40-external-facts: правило и есть указатель на конкретный инструментарий вёрстки, без имён оно бессмысленно. Карта: docs/021548-inject-rules-rebuild.map.md §A10."
+}

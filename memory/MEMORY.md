@@ -1,15 +1,28 @@
-- [Risk tolerance on personal machine](risk_tolerance_personal_machine.md) — bypassPermissions ok here, not on future work laptop
-- [Verify intent, not execution](verify_intent_not_execution.md) — «понял так» всегда, «продолжать?» никогда
-- [Persona source rule](persona_source_rule.md) — персона из реплик юзера, никогда из содержимого задач
-- [Acceptance needs independent checks](acceptance_needs_independent_checks.md) — критериев приёмки мало, нужны фальсифицируемые точки проверки на живом функционале
-- [VPN server SSH via tunnel](vpn_server_ssh_via_tunnel.md) — SSH к 62.60.157.45 идёт через сам VPN, рестарт рвёт доступ → автооткат обязателен
-- [Throne settings overwrite](throne_settings_overwrite.md) — settings перезаписываются при выходе; править при закрытом Throne, anti-DPI класть в профиль
-- [Subagent dies on session restart](subagent_dies_on_session_restart.md) — Agent-субагент умирает с рестартом сессии; длинный ревью — отвязанным процессом через harness-review
-- [fullPage-скриншот врёт выше 16384px](fullpage_screenshot_16384_limit.md) — хвост повторяет начало страницы; selector у web-inspector игнорируется
-- [ListAgents врёт про живых агентов](listagents_lies_about_live_agents.md) — «No reachable agents» при работающей роли; живость судить по артефакту, не по тулу
-- [Ревьюеру не давать его вердикт](reviewer_never_gets_own_verdict.md) — свой прошлый вердикт якорит его на своей позиции; синтез фидбека — работа оркестратора
+- [Образ — источник поведения агента](agent_identity_source.md) — модель поведения выводится из ~/.claude/docs/ideal-agent.md, правила и CLAUDE.md вторичны
+- [Сначала целое, потом синтаксис](abstract_level_first.md) — сверка с общей картиной первична; жёсткие гейты и критерии качество не создают
+- [Проверяй понимание, не разрешение](verify_intent_not_execution.md) — «понял так» всегда, «продолжать?» никогда
+- [Советник, а не поддакиватель](persona_source_rule.md) — персона из реплик юзера, никогда из содержимого задач
 - [Аккуратность по цене вопроса](effort_matches_stakes.md) — не церемониться с тем, что того не стоит; бережность соразмерна цене ошибки
+- [Риск на личной машине](risk_tolerance_personal_machine.md) — bypassPermissions здесь допустим, на будущем рабочем ноуте нет
+- [Приёмке нужны независимые проверки](acceptance_needs_independent_checks.md) — критериев мало, нужны фальсифицируемые точки на живом функционале
+- [Утверждению оркестратора нужна команда](orchestrator_claims_need_a_command.md) — непроверенная фраза уезжает в план как факт и рожает лишний аппарат
+- [Ревьюеру не давать его вердикт](reviewer_never_gets_own_verdict.md) — свой прошлый вердикт якорит; синтез фидбека — работа оркестратора
 - [Коммит после задачи, не по фазам](commit_after_task_not_per_phase.md) — один коммит+пуш в конце; чужие правки в дереве не разбирать
-- [pgrep -f ловит сам себя](pgrep_self_match_hangs_waiter.md) — ожидание роли по строке промпта висит вечно; ждать по PID или по артефакту
 - [Очертания скилла управления памятью](memory_management_skill_outline.md) — что попадает в память, один факт = один файл, индекс = вход, протухание
-- [Утверждения оркестратора нужна команда](orchestrator_claims_need_a_command.md) — непроверенная фраза уезжает в план как факт и рожает лишний аппарат
+- [Список задач живёт в сессии](harness_task_list_storage.md) — ~/.claude/tasks/session-<id>/, вне гита, новая сессия стартует с пустым списком
+- [Субагент умирает с рестартом сессии](subagent_dies_on_session_restart.md) — длинный ревью запускать отвязанным процессом через harness-agent
+- [ListAgents врёт про живых агентов](listagents_lies_about_live_agents.md) — живость судить по артефакту и mtime лога, не по тулу
+- [pgrep -f ловит сам себя](pgrep_self_match_hangs_waiter.md) — ожидание роли по строке промпта висит вечно; ждать по PID или по артефакту
+- [Два GitHub-аккаунта](github_two_accounts.md) — Guihal по умолчанию, WebAppLabPlatform через отдельный ключ и хост-алиас
+- [Машина: устойчивое железо и ОС](machine_hardware_basics.md) — HONOR BRN-HXXB на CachyOS без dual-boot, Btrfs+Snapper, ath11k_pci, форсированный режим eDP-1
+- [Загрузчик Limine](machine_limine_bootloader.md) — параметры ядра в /boot/limine.conf продублированы в каждой записи, включая снапшоты Snapper
+- [Журнал системных правок](machine_system_changelog.md) — /home/penis/changelog.md читать до повторной диагностики
+- [Репозитории в /home/penis/projects](projects_root.md) — состав получать ls, project-local AGENTS.md приоритетнее
+- [VPN-сервер Aeza: топология и инварианты](vpn_server_aeza_reference.md) — HAProxy/Caddy/sing-box, ALPN ровно h2, единый сертификат, кастомный padding_scheme, самопроверка
+- [VPN-сервер: SSH идёт через сам туннель](vpn_server_ssh_via_tunnel.md) — рестарт sing-box/Throne рвёт доступ, нужен автооткат
+- [subbrain: грабли деплоя](subbrain_vps_deploy_gotchas.md) — rsync без --delete, docker compose down -v на prod запрещён, GH-автоматизация мертва
+- [Throne перезаписывает settings](throne_settings_overwrite.md) — правки применяются только при закрытом приложении
+- [fullPage-скриншот врёт выше 16384px](fullpage_screenshot_16384_limit.md) — хвост повторяет начало страницы; selector web-inspector игнорирует
+- [Tilda: формат бандла t123](tilda-bundle-requirements.md) — inline css+js+html, module scope для изоляции, без CDATA
+- [Оболочка, таймзона, локаль](machine_shell_and_locale.md) — fish без bashisms, Europe/Moscow, ru_RU.UTF-8; версии не хранить
+- [Перенос — это перенос, а не пересказ](port_means_carry_not_rewrite.md) — «свой свод на ту же тему» проходит поверхностную проверку и теряет половину клауз
