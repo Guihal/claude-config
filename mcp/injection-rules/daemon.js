@@ -14099,6 +14099,20 @@ function readCharBudget() {
   return parsed;
 }
 var CHAR_BUDGET = readCharBudget();
+var SUBAGENT_CHAR_BUDGET_DEFAULT = 16000;
+function readSubagentCharBudget() {
+  const raw = process.env.IR_SUBAGENT_CHAR_BUDGET;
+  if (raw === undefined || raw === "")
+    return SUBAGENT_CHAR_BUDGET_DEFAULT;
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    console.error(`[injection-rules] IR_SUBAGENT_CHAR_BUDGET=${raw} \u043D\u0435\u0432\u0430\u043B\u0438\u0434\u0435\u043D (\u043D\u0443\u0436\u043D\u043E \u0446\u0435\u043B\u043E\u0435 \u2265 1), \u0431\u0435\u0440\u0443 \u0434\u0435\u0444\u043E\u043B\u0442 ${SUBAGENT_CHAR_BUDGET_DEFAULT}`);
+    return SUBAGENT_CHAR_BUDGET_DEFAULT;
+  }
+  console.error(`[injection-rules] IR_SUBAGENT_CHAR_BUDGET override: ${parsed}`);
+  return parsed;
+}
+var SUBAGENT_CHAR_BUDGET = readSubagentCharBudget();
 var STATE_TTL_DAYS_DEFAULT = 14;
 function readStateTtlDays() {
   const raw = process.env.IR_STATE_TTL_DAYS;
@@ -14362,6 +14376,7 @@ function status(sessionId) {
     sessions_count: _sessions.size,
     uptime_ms: Date.now() - _startedAt,
     char_budget: CHAR_BUDGET,
+    subagent_char_budget: SUBAGENT_CHAR_BUDGET,
     state_ttl_days: STATE_TTL_DAYS
   };
   if (!sessionId)
@@ -14507,7 +14522,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     },
     {
       name: "status",
-      description: "Daemon health: rules count, sessions count, uptime, char budget, state TTL. " + "With sessionId also returns that session's turn index and last budget overflow.",
+      description: "Daemon health: rules count, sessions count, uptime, turn and subagent char budgets, state TTL. " + "With sessionId also returns that session's turn index and last budget overflow.",
       inputSchema: {
         type: "object",
         properties: { sessionId: { type: "string" } }
@@ -14521,26 +14536,46 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     if (name === "evaluate") {
       const { sessionId, source, text, tick } = args ?? {};
       if (!sessionId || !source) {
-        return { content: [{ type: "text", text: "sessionId and source required" }], isError: true };
+        return {
+          content: [{ type: "text", text: "sessionId and source required" }],
+          isError: true
+        };
       }
       const r = evaluate({ sessionId, source, text: text ?? "", tick: !!tick });
       return { content: [{ type: "text", text: JSON.stringify(r) }] };
     }
     if (name === "list_rules") {
-      return { content: [{ type: "text", text: JSON.stringify({ rules: listRules() }) }] };
+      return {
+        content: [
+          { type: "text", text: JSON.stringify({ rules: listRules() }) }
+        ]
+      };
     }
     if (name === "get_rule") {
       const r = getRule(args?.name);
       if (!r)
-        return { content: [{ type: "text", text: "rule not found" }], isError: true };
+        return {
+          content: [{ type: "text", text: "rule not found" }],
+          isError: true
+        };
       return { content: [{ type: "text", text: JSON.stringify(r) }] };
     }
     if (name === "status") {
-      return { content: [{ type: "text", text: JSON.stringify(status(args?.sessionId)) }] };
+      return {
+        content: [
+          { type: "text", text: JSON.stringify(status(args?.sessionId)) }
+        ]
+      };
     }
-    return { content: [{ type: "text", text: `unknown tool: ${name}` }], isError: true };
+    return {
+      content: [{ type: "text", text: `unknown tool: ${name}` }],
+      isError: true
+    };
   } catch (e) {
-    return { content: [{ type: "text", text: `error: ${e.message}` }], isError: true };
+    return {
+      content: [{ type: "text", text: `error: ${e.message}` }],
+      isError: true
+    };
   }
 });
 var transport = new StdioServerTransport;

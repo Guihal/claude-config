@@ -7,18 +7,24 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { evaluate, listRules, getRule, status as rulesStatus } from "./core.mjs";
+import {
+  evaluate,
+  listRules,
+  getRule,
+  status as rulesStatus,
+} from "./core.mjs";
 
 const server = new Server(
   { name: "injection-rules", version: "1.0.0" },
-  { capabilities: { tools: {} } }
+  { capabilities: { tools: {} } },
 );
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
     {
       name: "evaluate",
-      description: "Push text to per-session buffer and (if tick=true) compute rule applies.",
+      description:
+        "Push text to per-session buffer and (if tick=true) compute rule applies.",
       inputSchema: {
         type: "object",
         properties: {
@@ -47,7 +53,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: "status",
       description:
-        "Daemon health: rules count, sessions count, uptime, char budget, state TTL. " +
+        "Daemon health: rules count, sessions count, uptime, turn and subagent char budgets, state TTL. " +
         "With sessionId also returns that session's turn index and last budget overflow.",
       inputSchema: {
         type: "object",
@@ -63,25 +69,46 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     if (name === "evaluate") {
       const { sessionId, source, text, tick } = args ?? {};
       if (!sessionId || !source) {
-        return { content: [{ type: "text", text: "sessionId and source required" }], isError: true };
+        return {
+          content: [{ type: "text", text: "sessionId and source required" }],
+          isError: true,
+        };
       }
       const r = evaluate({ sessionId, source, text: text ?? "", tick: !!tick });
       return { content: [{ type: "text", text: JSON.stringify(r) }] };
     }
     if (name === "list_rules") {
-      return { content: [{ type: "text", text: JSON.stringify({ rules: listRules() }) }] };
+      return {
+        content: [
+          { type: "text", text: JSON.stringify({ rules: listRules() }) },
+        ],
+      };
     }
     if (name === "get_rule") {
       const r = getRule(args?.name);
-      if (!r) return { content: [{ type: "text", text: "rule not found" }], isError: true };
+      if (!r)
+        return {
+          content: [{ type: "text", text: "rule not found" }],
+          isError: true,
+        };
       return { content: [{ type: "text", text: JSON.stringify(r) }] };
     }
     if (name === "status") {
-      return { content: [{ type: "text", text: JSON.stringify(rulesStatus(args?.sessionId)) }] };
+      return {
+        content: [
+          { type: "text", text: JSON.stringify(rulesStatus(args?.sessionId)) },
+        ],
+      };
     }
-    return { content: [{ type: "text", text: `unknown tool: ${name}` }], isError: true };
+    return {
+      content: [{ type: "text", text: `unknown tool: ${name}` }],
+      isError: true,
+    };
   } catch (e: any) {
-    return { content: [{ type: "text", text: `error: ${e.message}` }], isError: true };
+    return {
+      content: [{ type: "text", text: `error: ${e.message}` }],
+      isError: true,
+    };
   }
 });
 
