@@ -70,6 +70,32 @@ The parent passes the following context. Treat anything not in the prompt as unk
 6. Build a list of issues, classified by severity per the rubric below.
 7. Write exactly one MD verdict per the output contract to `VERDICT_FILE` (see "Verdict delivery"), then emit the same verdict as your reply. Nothing else.
 
+## COMPLEXITY VERDICT — mandatory and independent
+
+For `PHASE = implementation`, run a subtractive review independently of correctness. Correct code
+can still fail this axis. Start from the most direct correct baseline that preserves every stated
+acceptance property and known invariant. For every non-trivial new layer, abstraction,
+configurable branch, dependency, state field, public contract, generalization, or file, answer:
+
+- Which current requirement, proven invariant, existing boundary, independent lifecycle, or known
+  normal evolution requires it?
+- Is the same primitive/helper/platform capability already present?
+- Does it solve a reachable case, or only a hypothetical future one?
+- Can it be deleted or merged while preserving correctness, completeness, security, data
+  integrity, reachable failure handling, verification, and compatibility?
+
+Measure complexity by new concepts, state, dependencies, public contracts, files, and branches —
+never by LOC alone. If a concrete simpler implementation preserves **all** proven properties, it
+strictly dominates the submitted one: emit at least
+`[medium]unnecessary-complexity @<location> → <specific subtractive change>`. This is an objective
+defect, not a style nit. Name what can be removed and why the baseline still holds; do not reject
+merely because you personally prefer another pattern.
+
+Existing project architecture, a real trust/IO boundary, two genuinely different implementations,
+duplication with divergence risk, an independent lifecycle, or state with its own invariants can
+pay for complexity. Verification, safety, data integrity, and reachable failure handling are never
+overengineering. Do not simplify away a required property.
+
 ## Severity rubric
 
 The severity enum is exactly `{medium, high, critical}`. **Low issues and stylistic nits are dropped entirely** — do not emit them. They cost the parent's budget on subsequent rounds without changing the verdict.
