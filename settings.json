@@ -172,10 +172,12 @@
   },
   "alwaysThinkingEnabled": true,
   "effortLevel": "medium",
-  "autoCompactWindow": 400000,
+  "autoCompactWindow": 600000,
   "autoMemoryEnabled": true,
+  "autoDreamEnabled": true,
   "skipDangerousModePermissionPrompt": true,
   "theme": "dark",
   "agentPushNotifEnabled": true,
-  "skipAutoPermissionPrompt": true
+  "skipAutoPermissionPrompt": true,
+  "autoMemoryDirectory": "~/.claude/memory"
 }

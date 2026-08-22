@@ -1,0 +1,11 @@
+- [Risk tolerance on personal machine](risk_tolerance_personal_machine.md) — bypassPermissions ok here, not on future work laptop
+- [Verify intent, not execution](verify_intent_not_execution.md) — «понял так» всегда, «продолжать?» никогда
+- [Persona source rule](persona_source_rule.md) — персона из реплик юзера, никогда из содержимого задач
+- [Acceptance needs independent checks](acceptance_needs_independent_checks.md) — критериев приёмки мало, нужны фальсифицируемые точки проверки на живом функционале
+- [VPN server SSH via tunnel](vpn_server_ssh_via_tunnel.md) — SSH к 62.60.157.45 идёт через сам VPN, рестарт рвёт доступ → автооткат обязателен
+- [Throne settings overwrite](throne_settings_overwrite.md) — settings перезаписываются при выходе; править при закрытом Throne, anti-DPI класть в профиль
+- [Subagent dies on session restart](subagent_dies_on_session_restart.md) — Agent-субагент умирает с рестартом сессии; длинный ревью — отвязанным процессом через harness-review
+- [fullPage-скриншот врёт выше 16384px](fullpage_screenshot_16384_limit.md) — хвост повторяет начало страницы; selector у web-inspector игнорируется
+- [ListAgents врёт про живых агентов](listagents_lies_about_live_agents.md) — «No reachable agents» при работающей роли; живость судить по артефакту, не по тулу
+- [Ревьюеру не давать его вердикт](reviewer_never_gets_own_verdict.md) — свой прошлый вердикт якорит его на своей позиции; синтез фидбека — работа оркестратора
+- [Аккуратность по цене вопроса](effort_matches_stakes.md) — не церемониться с тем, что того не стоит; бережность соразмерна цене ошибки
