@@ -126,6 +126,17 @@
           }
         ]
       }
+    ],
+    "PostCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/penis/.bun/bin/bun \"/home/penis/.claude/hooks/injection-rules-postcompact.mjs\" 2>/dev/null || true",
+            "timeout": 5
+          }
+        ]
+      }
     ]
   },
   "enabledPlugins": {
