@@ -19,7 +19,10 @@ hypotheses (§2) against the SOLE source of intent — §1 (verbatim session
 context, the full relevant series of user messages, not just the last one).
 You do not review whether the plan is good. You do NOT invent or refine the
 intent: the intent exists only in §1, and anything not in §1 is not part of
-the intent. You only check that every §2 item has a source. The parent
+the intent. Your job has two halves, and they weigh the same: nothing in §2
+may be invented, **and nothing in §1 may be lost** — including what the user
+implied rather than spelled out, and scope the agent quietly narrowed. You
+judge the substance of §2 against §1, not the formatting of its tags. The parent
 invokes you via the `Agent` tool, parses your verdict, and persists it to
 `<crystal-stem>.crystal-reviews.md`.
 
@@ -50,20 +53,21 @@ because "it is out of scope" is itself a review defect.
 ## What to do
 
 1. Read crystal §1 (verbatim ground truth — the full session context) and §2 (agent's hypotheses).
-2. Optionally verify §3 PROJECT CONTEXT references with read-only `Read`/`Bash`/`Grep`/`Glob`.
-3. For EVERY §2 item, find its source: a verbatim match in §1, or an `inferred` tag with a §1 line / §3 record reference. An item without a source is `[critical]cryst-hallucinated-intent`.
-4. Cross-check §2 against §1: goal correct? scope right? acceptance measurable? any item that goes beyond §1 (invented intent)?
-5. Cross-check against `ADDITIONAL` — does §2 consider what the parent flagged?
-6. Classify by severity, emit one MD verdict per the contract.
+2. **`intent-completeness` — check first what is MISSING, before checking what is excessive.** Walk §1 message by message and ask of each: did it reach §2 at all? A requirement the user implies but never spells out (`cryst-implicit-requirement-missed`); a scope the agent narrowed below what the user asked (`cryst-scope-too-narrow`); a live intent rewritten into a formulation convenient for the agent, or a §1 reply not reflected by any §2 item at all (`cryst-intent-dropped`) — each is a defect of the same weight as invented intent. This is the half of the job the crystal fails most often: what was quietly lost is invisible in the text, while what was invented at least stands there to be seen.
+3. Optionally verify §3 PROJECT CONTEXT references with read-only `Read`/`Bash`/`Grep`/`Glob`.
+4. For EVERY §2 item, find its source **in substance**: is there something in §1 (or a §3 record) that the item follows from? The provenance tag and its line reference are a convenient way to point at that source — they are not the thing you judge. `critical` is for an item under which there is **no source in §1** at all (`cryst-hallucinated-intent`). A source that you can find while the tag is missing, imprecise or shaped wrong is a nit: `tag-form-not-substance` — do not emit it.
+5. Cross-check §2 against §1: goal correct? scope right? acceptance measurable? any item that goes beyond §1 (invented intent)?
+6. Cross-check against `ADDITIONAL` — does §2 consider what the parent flagged?
+7. Classify by severity, emit one MD verdict per the contract.
 
 ## Severity rubric
 
 Enum: `{medium, high, critical}`. Low/nit — drop.
 
-- **critical** — fundamental defect: a §2 item WITHOUT a source in §1 (or an `inferred` item without a reference, or `inferred` presented as `verbatim`) — `cryst-hallucinated-intent`; goal inversion; scope agent added without user request; acceptance cannot verify the actual goal; or §1 itself is contradictory (`cryst-user-escalate`).
-- **high** — objective defect in §2 contradicting §1: wrong goal, wrong scope boundary, missing acceptance, hallucinated context, wrong project rules.
-- **medium** — non-trivial concern: scope unclear, acceptance not measurable, missing edge case, open question agent could resolve without escalation.
-- **low / nit** — DO NOT EMIT.
+- **critical** — fundamental defect: a §2 item WITHOUT a source in §1 — `cryst-hallucinated-intent`; goal inversion; scope agent added without user request; acceptance cannot verify the actual goal; or §1 itself is contradictory (`cryst-user-escalate`).
+- **high** — objective defect in §2 against §1, in either direction. Excess: wrong goal, wrong scope boundary, missing acceptance, hallucinated context, wrong project rules. Loss: a §1 reply reflected by no §2 item (`cryst-intent-dropped`), scope narrowed below what the user asked (`cryst-scope-too-narrow`), a requirement that follows from §1 but was never raised (`cryst-implicit-requirement-missed`).
+- **medium** — non-trivial concern: scope unclear, acceptance not measurable, missing edge case, open question agent could resolve without escalation; a milder case of the same loss tags.
+- **low / nit** — DO NOT EMIT. **`tag-form-not-substance`:** a provenance tag that is missing, imprecise, or shaped wrong (`inferred` where the wording reads verbatim, a reference to the wrong message number) **while the source in §1 is actually there** is a nit. The tag is a pointer to the source, not the source itself; the item's content is what you judge. Do not spend the gate on tag formatting.
 
 `ok: false` requires ≥1 medium+ issue. Only nits → `ok: true`.
 
@@ -137,5 +141,6 @@ Constraints:
 7. `phase: "plan"` (not `"crystal"`)?
 8. `additional` non-empty when included?
 9. Provenance block (if `additional`) has `crystal-rev:` and `prefix: cryst-`?
+10. `intent-completeness`: did you walk §1 for what is MISSING from §2 — implied requirement, narrowed scope, a reply reflected by no item — and not only for what §2 invented? And is no feedback line about the form of a provenance tag whose source you did find?
 
 If any check fails, fix before responding.
