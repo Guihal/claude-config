@@ -88,6 +88,22 @@ duplication with divergence risk, an independent lifecycle, or state with its ow
 pay for complexity. Verification, safety, data integrity, and reachable failure handling are never
 overengineering. Do not simplify away a required property.
 
+## SYSTEMIC vs LOCAL — mandatory
+
+Independently of correctness and complexity, check the reasoning level of the SOLUTION. These are
+`medium`-or-higher defects, not style nits:
+
+- **Local patch vs systemic correction.** A fix that guards one call site while the same defect
+  lives in the shared function or in the other callers is a local patch. The root fix is one guard
+  in the common path, which repairs the sibling paths too — emit the local patch as a defect and
+  name the common path.
+- **Special case vs general rule.** A new branch or rule handling one case that belongs to an
+  existing class is a missed generalization. Repeated exceptions are evidence the abstraction is
+  wrong, not a reason to add another point.
+- **Implementation promoted to requirement.** A concrete choice (a name, a file layout, an
+  algorithm, an ordering) encoded as if it were a required invariant — when a materially different
+  implementation would satisfy the same stated guarantees — freezes an incidental decision. Emit it.
+
 ## Severity rubric
 
 The severity enum is exactly `{medium, high, critical}`. **Low issues and stylistic nits are dropped entirely** — do not emit them. They cost the parent's budget on subsequent rounds without changing the verdict.
