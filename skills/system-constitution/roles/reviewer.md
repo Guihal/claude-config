@@ -21,15 +21,8 @@ Invoked by Operator (read-only subagent) after the Executor commits the packet.
 | `PACKET_META` | `allowed_write_paths`, `acceptance`, `non_goals`, `diff_budget_loc`, `file_count_max` |
 | `PROJECT_RULES` | `CLAUDE.md` + `*guardrails*/SKILL.md` excerpts, caller-capped (~4000 chars). Binding conventions. |
 | `PLAN` | approved plan for this packet, if one exists |
-| `HISTORY` | merged feedback from prior review rounds (may be empty) |
 
-**Not received (intentional):** `PHASE` (always `implementation` — Reviewer only sees committed diffs, never plans), `DEPTH`/`COMPLEXITY` (RLM budget arithmetic lives on the Operator side, not here). Omitting these is a design choice, not a gap.
-
-### HISTORY dedup
-
-- Do NOT re-raise issues the caller marked `[addressed]` and stripped before sending HISTORY.
-- If a HISTORY issue is still present in the new diff and unresolved, raise it again.
-- Never raise already-addressed-and-removed issues.
+**Not received (intentional):** feedback of prior review rounds — neither yours nor anyone else's, in no form: no merged block, no path to a verdict log, no errand to go read earlier rounds. You judge the diff as it stands now; a reviewer handed its own former position looks for that position instead of reviewing. Deduping across rounds and tracking what was already answered is the caller's work. Also not received: `PHASE` (always `implementation` — Reviewer only sees committed diffs, never plans), `DEPTH`/`COMPLEXITY` (RLM budget arithmetic lives on the Operator side, not here). Omitting these is a design choice, not a gap.
 
 ### Tools
 
@@ -175,7 +168,7 @@ The Reviewer does NOT:
 
 ## 7. Bounded context
 
-- **Receives:** `TASK` + `DIFF` + `PACKET_META` + `PROJECT_RULES` + `PLAN` + `HISTORY`.
+- **Receives:** `TASK` + `DIFF` + `PACKET_META` + `PROJECT_RULES` + `PLAN`.
 - **Does NOT receive:** full codebase, full spec, project history, test logs (unless linked in the diff).
 - May pull referenced files via read-only tools to verify claims (file-exists, API-signature, command-output). Principle: the more complex the project, the less raw context per agent, the stricter the interface — not more context, more structure.
 

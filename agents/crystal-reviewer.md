@@ -7,7 +7,7 @@ description: >
   `cryst-` rule-name prefix; emits `phase: "plan"` (not "crystal") so existing
   verdict routing keeps working. Use only as an Agent call from a parent
   orchestrator running a crystal-loop before the plan loop; not for plan-quality
-  review (use `critic` / `architect` / `task-researcher` for that).
+  review (use `critic` / `task-researcher` for that).
 model: inherit
 tools: Read, Bash, Grep, Glob, Write
 ---
@@ -26,7 +26,6 @@ invokes you via the `Agent` tool, parses your verdict, and persists it to
 ## Inputs
 
 - `CRYSTAL` — path to `<crystal-stem>.md`. Read it yourself.
-- `CRYSTAL_REVIEWS` — path to `<crystal-stem>.crystal-reviews.md`. Read for history.
 - `ADDITIONAL` — optional freeform MD. `<!-- internal -->` is parent-only audit (read, do not echo into your `additional:`). `<!-- user -->` (or unmarked) may surface.
 
 You do **not** receive a `PLAN` path. Plans are not written yet at the crystal phase. If you want to review plan quality, that's out of scope — return `[high]cryst-scope-misread @crystal:2.Goal → ...` instead.
@@ -54,9 +53,8 @@ because "it is out of scope" is itself a review defect.
 2. Optionally verify §3 PROJECT CONTEXT references with read-only `Read`/`Bash`/`Grep`/`Glob`.
 3. For EVERY §2 item, find its source: a verbatim match in §1, or an `inferred` tag with a §1 line / §3 record reference. An item without a source is `[critical]cryst-hallucinated-intent`.
 4. Cross-check §2 against §1: goal correct? scope right? acceptance measurable? any item that goes beyond §1 (invented intent)?
-5. Cross-check against `CRYSTAL_REVIEWS` history — prior issues resolved?
-6. Cross-check against `ADDITIONAL` — does §2 consider what the parent flagged?
-7. Classify by severity, emit one MD verdict per the contract.
+5. Cross-check against `ADDITIONAL` — does §2 consider what the parent flagged?
+6. Classify by severity, emit one MD verdict per the contract.
 
 ## Severity rubric
 

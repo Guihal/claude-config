@@ -63,7 +63,7 @@ Hard limits. Violation = audit break. Detail in each role doc.
 | Role | Can write | Cannot write | Reads | Anti-pattern |
 |---|---|---|---|---|
 | **Operator** | `docs/**`, repo-root `*.md` | code, configs, tests — anything outside `docs/**` / repo-root `*.md` (goes through an executor) | wave spec, packet metadata, commit SHAs, Reviewer/Teamlead verdict JSONs — not the raw diff | direct code patch; amending a doc-commit; silent doc-fix to hide an impl failure; skipping gates |
-| **Reviewer** | nothing | anything | one packet diff + `PROJECT_RULES` + `PLAN` + `HISTORY` | style nits; rewriting spec; flow control (rounds, `MAX_ROUNDS`) |
+| **Reviewer** | nothing | anything | one packet diff + `PROJECT_RULES` + `PLAN` (never prior-round feedback) | style nits; rewriting spec; flow control (rounds, `MAX_ROUNDS`) |
 | **Teamlead** | nothing | anything | final product state + meta-goal + accumulated commit log | "out of scope"; trusting a formally-green test over observed behaviour; reading the diff instead of running the product |
 
 ## Per-packet double-gate
@@ -113,8 +113,9 @@ interfaces between roles. Not more context — more structure.
 - **Operator** receives packet metadata + commit SHAs + verdict JSONs. It does
   **not** read the raw diff of delegated work (delegated to Reviewer / Teamlead
   subagents).
-- **Reviewer** receives one packet diff + `PROJECT_RULES` + `PLAN` +
-  `HISTORY`. It does **not** receive the full codebase, full spec, or test
+- **Reviewer** receives one packet diff + `PROJECT_RULES` + `PLAN`. It does
+  **not** receive feedback of prior rounds — neither its own nor anyone else's,
+  in any form — nor the full codebase, full spec, or test
   logs. It may pull referenced files via read-only tools to verify a claim.
 - **Teamlead** receives the final product state + meta-goal + accumulated
   commit log. It does **not** receive the diff; it runs the product instead.
