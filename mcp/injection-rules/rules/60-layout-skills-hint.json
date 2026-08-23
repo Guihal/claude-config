@@ -1,11 +1,6 @@
 {
   "name": "60-layout-skills-hint",
-  "apply": [
-    "*",
-    "!critic",
-    "!task-worker",
-    "!intent-auditor"
-  ],
+  "apply": ["*", "!critic", "!task-worker", "!intent-auditor"],
   "send_on_start": false,
   "window": 1,
   "_derives": "ideal-agent.md → Он не ленится читать; Он доводит до работающего",

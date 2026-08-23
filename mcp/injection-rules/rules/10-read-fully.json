@@ -1,8 +1,6 @@
 {
   "name": "10-read-fully",
-  "apply": [
-    "*"
-  ],
+  "apply": ["*"],
   "send_on_subagent": true,
   "_tier": "T1",
   "_derives": "ideal-agent.md → Он не ленится читать",
