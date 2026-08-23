@@ -27,3 +27,4 @@
 - [Оболочка, таймзона, локаль](machine_shell_and_locale.md) — fish без bashisms, Europe/Moscow, ru_RU.UTF-8; версии не хранить
 - [Перенос — это перенос, а не пересказ](port_means_carry_not_rewrite.md) — «свой свод на ту же тему» проходит поверхностную проверку и теряет половину клауз
 - [Задачи не кладутся в память](tasks_never_in_memory.md) — бэклог/работа в ~/plans или трекер, память для фактов и фидбека
+- [Кодируй поведение процедурой, не лозунгом](encode-behavior-as-procedure-not-slogan.md) — inject-каталог: процедура смены уровня + semantic-stop/counterfactual, 4-6 эвристик, контекстно по ролям, бюджет растёт под контент
