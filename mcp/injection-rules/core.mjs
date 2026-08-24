@@ -320,16 +320,18 @@ function readStateFile(sessionId) {
   try {
     return JSON.parse(readFileSync(statePath(sessionId), "utf8"));
   } catch (e) {
-    if (e.code === "ENOENT") {
-      return {
-        sessionId,
-        turnIndex: 0,
-        buffers: { user: [], assistant: [], tool: [] },
-        cooldown: {},
-        updatedAt: new Date().toISOString(),
-      };
+    // ENOENT — сессии ещё нет; битый/усечённый JSON (напр. гонка записи двух хуков) НЕ роняет
+    // хук: краш стоп-хука хуже потери каденс-стейта одной сессии — берём свежее состояние.
+    if (e.code !== "ENOENT") {
+      console.error(`[injection-rules] state read ${sessionId}: ${e.message}, беру свежее`);
     }
-    throw e;
+    return {
+      sessionId,
+      turnIndex: 0,
+      buffers: { user: [], assistant: [], tool: [] },
+      cooldown: {},
+      updatedAt: new Date().toISOString(),
+    };
   }
 }
 
@@ -376,7 +378,13 @@ function pruneStaleState(now) {
 
 function saveState(sessionId, state) {
   state.updatedAt = new Date().toISOString();
-  const tmp = statePath(sessionId) + ".tmp";
+  // Уникальный tmp на писателя: общий `state.<id>.json.tmp` при параллельных хуках одной сессии
+  // (PostToolUse + Stop почти одновременно) интерливился и оставлял битый JSON после rename.
+  // Суффикс `.json.tmp` сохранён — иначе pruneStaleState перестанет подбирать осиротевшие tmp.
+  const tmp = statePath(sessionId).replace(
+    /\.json$/,
+    `.${process.pid}.${Math.random().toString(36).slice(2)}.json.tmp`,
+  );
   writeFileSync(tmp, JSON.stringify(state));
   renameSync(tmp, statePath(sessionId));
 }
