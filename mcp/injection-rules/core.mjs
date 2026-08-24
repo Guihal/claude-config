@@ -40,7 +40,7 @@ const BUFFER_CAP = 30;
 // injection-rules-userprompt.mjs обязан передавать этот же CHAR_BUDGET в emitHook; с дефолтом
 // 2000 нудж task-list молча обрезался на 40 ходах из 200.
 // К стартовому своду (startupRules + SessionStart-хук) бюджет НЕ применяется.
-export const CHAR_BUDGET_DEFAULT = 6400;
+export const CHAR_BUDGET_DEFAULT = 6900;
 
 // Лимит читается из env, потому что симулятор (tools/budget-sim.mjs) обязан измерить СПРОС —
 // сколько правил хотели доставить, — а при боевом лимите отбор ниже молча клипует кандидатов, и
