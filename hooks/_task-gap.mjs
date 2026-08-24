@@ -29,16 +29,25 @@ function sid8(sessionId) {
   return String(sessionId || "").slice(0, 8);
 }
 
-// {count, inProgress, allDone, staleInProgressMin}
+// {count, inProgress, allDone, staleInProgressMin, everHadTasks}
+// everHadTasks: сессия хоть раз заводила список. Стор хранит только активные задачи (completed
+// прунятся), поэтому count===0 не отличает «списка не было» от «всё закрыто». Различает
+// .highwatermark — монотонный счётчик созданных id: >0 значит список уже вёлся.
 function readTaskState(sessionId) {
   const dir = `${TASKS_DIR}/session-${sid8(sessionId)}`;
   if (!existsSync(dir))
-    return { count: 0, inProgress: 0, allDone: false, staleInProgressMin: 0 };
+    return { count: 0, inProgress: 0, allDone: false, staleInProgressMin: 0, everHadTasks: false };
+  let everHadTasks = false;
+  try {
+    everHadTasks = (parseInt(readFileSync(`${dir}/.highwatermark`, "utf8"), 10) || 0) > 0;
+  } catch {
+    // нет highwatermark — считаем, что список не заводился
+  }
   let files;
   try {
     files = readdirSync(dir).filter((f) => f.endsWith(".json"));
   } catch {
-    return { count: 0, inProgress: 0, allDone: false, staleInProgressMin: 0 };
+    return { count: 0, inProgress: 0, allDone: false, staleInProgressMin: 0, everHadTasks };
   }
   let inProgress = 0;
   let done = 0;
@@ -63,6 +72,7 @@ function readTaskState(sessionId) {
     inProgress,
     allDone: files.length > 0 && done === files.length,
     staleInProgressMin,
+    everHadTasks,
   };
 }
 
@@ -90,10 +100,12 @@ export function taskGapNudge(sessionId, source) {
   if (!sessionId) return "";
   const st = readCtr(sessionId);
   st.n = source === "user" ? 0 : (st.n || 0) + 1;
-  const { count, inProgress, allDone, staleInProgressMin } =
+  const { count, inProgress, allDone, staleInProgressMin, everHadTasks } =
     readTaskState(sessionId);
   let out = "";
-  if (count === 0 && st.n >= K) {
+  if (count === 0 && st.n >= K && !everHadTasks) {
+    // Бьём только если список НИ РАЗУ не заводился. Заводился и опустел (всё закрыто) — молчим:
+    // цель ветки — поймать сессию, вообще не тронувшую список, а не финиш пачки.
     out = `⚠ [task-gap] ${st.n} тул-коллов, задач в списке 0. Поставь список ДО следующего шага: TaskCreate (50-task-list). Тривиальная разовая операция — игнорируй.`;
   } else if (count > 0 && inProgress === 0 && !allDone) {
     out = `⚠ [task-gap] в списке нет ни одной in_progress — отметь текущий шаг: TaskUpdate.`;
