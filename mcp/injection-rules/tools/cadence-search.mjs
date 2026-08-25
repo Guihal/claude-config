@@ -10,9 +10,34 @@
 /** Полосы тиров (редакторское решение плана 173212). T0 — фиксированная каденция, не ищется. */
 export const TIER_BANDS = { T1: [4, 17], T2: [18, 37], T3: [38, 71] };
 
-/** Сколько символов правило кладёт в ход по каденции: движок отдаёт suffix, без него — тело. */
+/**
+ * Длина САМОГО ДЛИННОГО варианта текста. Форма проверяется явно, а не через тихое чтение
+ * `.length`: на массиве `.length` вернул бы ЧИСЛО ВАРИАНТОВ (3) вместо длины в символах —
+ * молча, без падения, — и поиск каденций счёл бы правило почти невесомым.
+ * @param {string|string[]} value — текст правила или его варианты.
+ */
+export function maxVariantLength(value) {
+  if (typeof value === "string") return value.length;
+  if (Array.isArray(value)) {
+    if (value.length === 0) throw new Error("emit-length: empty variant list");
+    let max = 0;
+    for (const variant of value) {
+      if (typeof variant !== "string")
+        throw new Error("emit-length: unexpected shape");
+      if (variant.length > max) max = variant.length;
+    }
+    return max;
+  }
+  throw new Error("emit-length: unexpected shape");
+}
+
+/**
+ * Сколько символов правило кладёт в ход по каденции: движок отдаёт suffix, без него — тело.
+ * Мера — худший (самый длинный) вариант: вариант выбирается случайно, и замер по короткому
+ * сделал бы переполнение бюджета случайным событием.
+ */
 export function emitLength(rule) {
-  return (rule.remind?.suffix ?? rule.body).length;
+  return maxVariantLength(rule.remind?.suffix ?? rule.body);
 }
 
 function bandValues([lo, hi]) {
@@ -169,3 +194,21 @@ export function searchCadences({ rules, base, horizon, maxPasses = 8 }) {
 }
 
 export const _internals = { emptyProfile, addCadence, demandStats };
+
+// Запускаемый чек формы: `node tools/cadence-search.mjs` → `cadence-search: emit-length ok`.
+// Стоит здесь, потому что молчаливая ошибка emitLength на массиве не падает и не видна в
+// выводе поиска — её видно только прицельным вводом.
+if (process.argv[1]?.endsWith("cadence-search.mjs")) {
+  const { strict: assert } = await import("node:assert");
+  assert.equal(emitLength({ body: "abcd" }), 4);
+  assert.equal(emitLength({ body: ["ab", "abcdef", "abc"] }), 6);
+  assert.equal(emitLength({ body: "x", remind: { suffix: "abc" } }), 3);
+  assert.equal(
+    emitLength({ body: "xxxxxxxxxx", remind: { suffix: ["a", "abcd"] } }),
+    4,
+  );
+  assert.throws(() => emitLength({ body: 42 }), /unexpected shape/);
+  assert.throws(() => emitLength({ body: [1, 2] }), /unexpected shape/);
+  assert.throws(() => emitLength({ body: [] }), /empty variant list/);
+  console.log("cadence-search: emit-length ok");
+}

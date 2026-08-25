@@ -14085,7 +14085,7 @@ import { createHash } from "crypto";
 var RULES_DIR = process.env.RULES_DIR || "/home/penis/.claude/mcp/injection-rules/rules";
 var STATE_DIR = process.env.STATE_DIR || "/home/penis/.claude/mcp/injection-rules";
 var BUFFER_CAP = 30;
-var CHAR_BUDGET_DEFAULT = 5500;
+var CHAR_BUDGET_DEFAULT = 7300;
 function readCharBudget() {
   const raw = process.env.IR_CHAR_BUDGET;
   if (raw === undefined || raw === "")
@@ -14137,6 +14137,48 @@ var WINDOW_HARD_CAP = 500;
 var _rulesCache = null;
 var _startedAt = Date.now();
 var _sessions = new Set;
+var TIER_RANK = { T0: 0, T1: 1, T2: 2, T3: 3 };
+var TIER_FALLBACK = "T3";
+function xmur3(str) {
+  let h = 1779033703 ^ str.length;
+  for (let i = 0;i < str.length; i++) {
+    h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
+    h = h << 13 | h >>> 19;
+  }
+  return () => {
+    h = Math.imul(h ^ h >>> 16, 2246822507);
+    h = Math.imul(h ^ h >>> 13, 3266489909);
+    return (h ^= h >>> 16) >>> 0;
+  };
+}
+function splitmix32(a) {
+  return () => {
+    a = a + 2654435769 | 0;
+    let t = a ^ a >>> 16;
+    t = Math.imul(t, 569420461);
+    t = t ^ t >>> 15;
+    t = Math.imul(t, 1935289751);
+    return ((t = t ^ t >>> 15) >>> 0) / 4294967296;
+  };
+}
+var variantRng = (() => {
+  const seed = process.env.IR_VARIANT_SEED;
+  if (seed === undefined || seed === "")
+    return Math.random;
+  return splitmix32(xmur3(seed)());
+})();
+function pickVariant(list, lastIndex) {
+  if (!Array.isArray(list) || list.length === 0)
+    throw new Error("pick-variant-empty");
+  if (list.length === 1)
+    return { text: list[0], index: 0 };
+  const pool = [];
+  for (let i = 0;i < list.length; i++)
+    if (i !== lastIndex)
+      pool.push(i);
+  const index = pool[Math.floor(variantRng() * pool.length)];
+  return { text: list[index], index };
+}
 function sanitizeSessionId(id) {
   if (!id)
     return "anonymous";
@@ -14160,13 +14202,43 @@ function compilePatterns(values) {
     return [];
   return values.map(compilePattern);
 }
+function normalizeVariants(value, field) {
+  const list = Array.isArray(value) ? value : [value];
+  if (list.length === 0)
+    throw new Error(`${field}-variants-empty`);
+  for (const item of list) {
+    if (typeof item !== "string")
+      throw new Error(`${field}-not-string`);
+    if (item.trim() === "")
+      throw new Error(`${field}-variant-empty`);
+  }
+  return list;
+}
+function tierRank(name, tier) {
+  if (tier === undefined) {
+    console.error(`[injection-rules] no-tier: ${name}`);
+    return TIER_RANK[TIER_FALLBACK];
+  }
+  const rank = TIER_RANK[tier];
+  if (rank === undefined)
+    throw new Error("tier-invalid");
+  return rank;
+}
 function makeRule(json) {
   if (!json || typeof json !== "object")
     throw new Error("root-not-object");
   if (typeof json.name !== "string")
     throw new Error("name-not-string");
-  if (typeof json.body !== "string")
+  if (typeof json.body !== "string" && !Array.isArray(json.body))
     throw new Error("body-not-string");
+  const bodies = normalizeVariants(json.body, "body");
+  if (json._core !== undefined) {
+    if (!Array.isArray(json._core) || json._core.length === 0)
+      throw new Error("core-not-array");
+    if (!json._core.every((a) => typeof a === "string" && a.trim() !== ""))
+      throw new Error("core-anchor-empty");
+  }
+  const rank = tierRank(json.name, json._tier);
   if (!Array.isArray(json.apply) || json.apply.length === 0)
     throw new Error("apply-empty");
   if (!json.apply.every((a) => typeof a === "string"))
@@ -14203,7 +14275,8 @@ function makeRule(json) {
     throw new Error("send-on-subagent-not-boolean");
   }
   const sendOnSubagent = json.send_on_subagent === true;
-  let remindEvery, remindSuffix;
+  let remindEvery;
+  let remindSuffixes = [];
   let remindAny = [], remindAll = [], remindNone = [];
   let source = "any";
   let cooldownTurns = 0;
@@ -14215,9 +14288,9 @@ function makeRule(json) {
       remindEvery = r.every_n_turns;
     }
     if (r.suffix !== undefined) {
-      if (typeof r.suffix !== "string")
+      if (typeof r.suffix !== "string" && !Array.isArray(r.suffix))
         throw new Error("remind-suffix-not-string");
-      remindSuffix = r.suffix;
+      remindSuffixes = normalizeVariants(r.suffix, "remind-suffix");
     }
     if (r.when && typeof r.when === "object") {
       const w = r.when;
@@ -14241,12 +14314,15 @@ function makeRule(json) {
   }
   return {
     name: json.name,
-    body: json.body,
+    bodies,
+    core: json._core ?? [],
+    tier: json._tier ?? TIER_FALLBACK,
+    tierRank: rank,
     wildcard,
     includes,
     excludes,
     remindEvery,
-    remindSuffix,
+    remindSuffixes,
     remindAny,
     remindAll,
     remindNone,
@@ -14309,16 +14385,16 @@ function readStateFile(sessionId) {
   try {
     return JSON.parse(readFileSync(statePath(sessionId), "utf8"));
   } catch (e) {
-    if (e.code === "ENOENT") {
-      return {
-        sessionId,
-        turnIndex: 0,
-        buffers: { user: [], assistant: [], tool: [] },
-        cooldown: {},
-        updatedAt: new Date().toISOString()
-      };
+    if (e.code !== "ENOENT") {
+      console.error(`[injection-rules] state read ${sessionId}: ${e.message}, \u0431\u0435\u0440\u0443 \u0441\u0432\u0435\u0436\u0435\u0435`);
     }
-    throw e;
+    return {
+      sessionId,
+      turnIndex: 0,
+      buffers: { user: [], assistant: [], tool: [] },
+      cooldown: {},
+      updatedAt: new Date().toISOString()
+    };
   }
 }
 function loadState(sessionId) {
@@ -14356,14 +14432,15 @@ function pruneStaleState(now) {
 }
 function saveState(sessionId, state) {
   state.updatedAt = new Date().toISOString();
-  const tmp = statePath(sessionId) + ".tmp";
+  const tmp = statePath(sessionId).replace(/\.json$/, `.${process.pid}.${Math.random().toString(36).slice(2)}.json.tmp`);
   writeFileSync(tmp, JSON.stringify(state));
   renameSync(tmp, statePath(sessionId));
 }
 function listRules() {
   return loadRules().map((r) => ({
     name: r.name,
-    body: r.body,
+    bodies: r.bodies,
+    tier: r.tier,
     apply: r.wildcard ? ["*"] : [...r.includes]
   }));
 }
@@ -14408,6 +14485,8 @@ function evaluate({ sessionId, source, text, tick, agentId = "main" }) {
   }
   if (tick) {
     state.turnIndex++;
+    if (!state.lastVariant || typeof state.lastVariant !== "object")
+      state.lastVariant = {};
     if (state.turnIndex === 1)
       pruneStaleState(Date.now());
     const rules = loadRules();
@@ -14427,16 +14506,16 @@ function evaluate({ sessionId, source, text, tick, agentId = "main" }) {
       const sliceCount = Math.min(rule.windowSize, state.buffers[source].length);
       const slicedTexts = state.buffers[source].slice(-sliceCount);
       let fires = false;
-      let body = null;
+      let variants = null;
       if (ruleHasSemantic(rule)) {
         if (semanticHit(rule, slicedTexts)) {
           fires = true;
-          body = rule.body;
+          variants = rule.bodies;
         }
       } else if (rule.remindEvery) {
         if (state.turnIndex % rule.remindEvery === 0) {
           fires = true;
-          body = rule.remindSuffix || rule.body;
+          variants = rule.remindSuffixes.length ? rule.remindSuffixes : rule.bodies;
         }
       }
       if (fires && rule.cooldownTurns > 0) {
@@ -14445,16 +14524,21 @@ function evaluate({ sessionId, source, text, tick, agentId = "main" }) {
           fires = false;
       }
       if (fires) {
+        const picked = pickVariant(variants, state.lastVariant[rule.name]);
         candidates.push({
           rule: rule.name,
-          body,
-          _priority: ruleHasSemantic(rule) ? 1 : 0
+          body: picked.text,
+          _variantIndex: picked.index,
+          _priority: ruleHasSemantic(rule) ? 1 : 0,
+          _tierRank: rule.tierRank
         });
       }
     }
     candidates.sort((a, b) => {
       if (a._priority !== b._priority)
         return b._priority - a._priority;
+      if (a._tierRank !== b._tierRank)
+        return a._tierRank - b._tierRank;
       return a.rule < b.rule ? -1 : a.rule > b.rule ? 1 : 0;
     });
     const applies = [];
@@ -14470,6 +14554,7 @@ function evaluate({ sessionId, source, text, tick, agentId = "main" }) {
       }
       applies.push({ rule: c.rule, body: c.body });
       totalChars += sep + c.body.length;
+      state.lastVariant[c.rule] = c._variantIndex;
       state.cooldown[c.rule] = state.turnIndex;
     }
     if (dropped.length > 0) {
@@ -14513,7 +14598,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     },
     {
       name: "get_rule",
-      description: "Get a single rule by name.",
+      description: "Get a single rule by name, with all wording variants (bodies, remindSuffixes).",
       inputSchema: {
         type: "object",
         properties: { name: { type: "string" } },

@@ -43,7 +43,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     },
     {
       name: "get_rule",
-      description: "Get a single rule by name.",
+      // Отдаёт ВСЕ варианты текста (bodies/remindSuffixes), а не один выбранный: инструмент для
+      // чтения каталога. Какой вариант уедет в контекст — показывает evaluate.
+      description:
+        "Get a single rule by name, with all wording variants (bodies, remindSuffixes).",
       inputSchema: {
         type: "object",
         properties: { name: { type: "string" } },

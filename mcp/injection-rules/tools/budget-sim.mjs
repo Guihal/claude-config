@@ -16,7 +16,12 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 
 import { scenarioTexts } from "./sim-scenarios.mjs";
-import { searchCadences, emitLength, TIER_BANDS } from "./cadence-search.mjs";
+import {
+  searchCadences,
+  emitLength,
+  maxVariantLength,
+  TIER_BANDS,
+} from "./cadence-search.mjs";
 // Каталоги — у движка, а не своей копией: он резолвит их из env (`core.mjs:11-14`), стенд задаётся
 // той же env. С хардкодом здесь `--assign` писал бы в боевые правила, пока движок читает стенд.
 // STATE_DIR берётся статическим импортом намеренно: loadEngine подменяет process.env.STATE_DIR на
@@ -31,12 +36,18 @@ const CORE_URL = pathToFileURL(
 const BUDGET_FLOOR = 5500;
 const DEMAND_BUDGET = 10_000_000;
 const HORIZON_DEFAULT = 10000;
+// Шов детерминизма: правило с несколькими вариантами текста отдаёт случайный из них, и без
+// фиксированного зерна профиль спроса плясал бы от запуска к запуску — тогда ни рекомендация
+// потолка, ни `--assign` не были бы воспроизводимы. Значение произвольное, важна его
+// постоянность; своё зерно задаётся флагом `--seed`.
+const SEED_DEFAULT = "budget-sim";
 
 function parseArgs(argv) {
   const args = {
     horizon: HORIZON_DEFAULT,
     budgetOverride: null,
     assign: false,
+    seed: SEED_DEFAULT,
   };
   for (let i = 0; i < argv.length; i++) {
     const flag = argv[i];
@@ -44,12 +55,19 @@ function parseArgs(argv) {
     else if (flag === "--budget-override")
       args.budgetOverride = requireInt(flag, argv[++i]);
     else if (flag === "--assign") args.assign = true;
+    else if (flag === "--seed") args.seed = requireSeed(flag, argv[++i]);
     else
       fail(
-        `неизвестный аргумент: ${flag}. Есть только --horizon, --budget-override, --assign`,
+        `неизвестный аргумент: ${flag}. Есть только --horizon, --budget-override, --assign, --seed`,
       );
   }
   return args;
+}
+
+function requireSeed(flag, raw) {
+  if (raw === undefined || raw === "")
+    fail(`${flag} требует непустое значение`);
+  return String(raw);
 }
 
 function requireInt(flag, raw) {
@@ -116,10 +134,56 @@ function measureReserve(rules, alwaysBody) {
   let best = { name: "-", delta: 0 };
   for (const rule of rules) {
     if (alwaysBody.has(rule.name)) continue;
-    const delta = rule.body.length - (rule.remind?.suffix?.length ?? 0);
+    // Обе стороны меряются по худшему варианту: тот же принцип, что и в emitLength — вариант
+    // выбирается случайно, поэтому резерв обязан покрывать самый дорогой исход.
+    const delta =
+      maxVariantLength(rule.body) -
+      (rule.remind?.suffix === undefined
+        ? 0
+        : maxVariantLength(rule.remind.suffix));
     if (delta > best.delta) best = { name: rule.name, delta };
   }
   return best;
+}
+
+/**
+ * Таблица «текст варианта → длина ХУДШЕГО варианта того же списка», по каждому правилу.
+ *
+ * Зачем не `applied.body.length`: движок отдаёт СЛУЧАЙНЫЙ вариант, и пик, посчитанный по нему,
+ * плясал бы вместе с выбором — переполнение бюджета становилось бы случайным событием (INV-D
+ * плана требует пик по самому длинному варианту). Список опознаётся по доставленному тексту:
+ * правило на этом ходу отдало либо тело, либо суффикс, и заменять длину надо на максимум ИМЕННО
+ * того списка, из которого текст пришёл.
+ */
+function worstLengthByText(rules) {
+  const table = new Map();
+  for (const rule of rules) {
+    const byText = new Map();
+    const lists = [rule.body];
+    if (rule.remind?.suffix !== undefined) lists.push(rule.remind.suffix);
+    for (const list of lists) {
+      const worst = maxVariantLength(list);
+      for (const text of Array.isArray(list) ? list : [list])
+        byText.set(text, Math.max(byText.get(text) ?? 0, worst));
+    }
+    table.set(rule.name, byText);
+  }
+  return table;
+}
+
+/**
+ * Длина, которой правило могло стоить бюджету на этом ходу (худший вариант его списка).
+ * Неопознанный текст = наша модель вывода движка разошлась с реальностью; тихо считать по факту
+ * нельзя — это вернуло бы замер по случайному варианту, поэтому останавливаемся.
+ */
+function worstApplyLength(table, applied) {
+  const len = table.get(applied.rule)?.get(applied.body);
+  if (len === undefined)
+    fail(
+      `правило ${applied.rule} отдало текст, которого нет ни в body, ни в remind.suffix — ` +
+        `замер по худшему варианту невозможен`,
+    );
+  return len;
 }
 
 /** Один прогон сценария: спрос, доставка, срезы по каждому правилу. */
@@ -142,7 +206,12 @@ async function runScenario({ name, texts, horizon, realBudget, rules }) {
     const semanticHits = new Map();
     // Сколько раз правило отдало ровно своё ТЕЛО (а не суффикс) — вход для measureReserve.
     const fullBody = new Map();
-    const bodyByName = new Map(rules.map((r) => [r.name, r.body]));
+    // Варианты тела правила: доставленный текст сверяется вхождением в этот список, а не
+    // равенством одной строке — иначе правило с вариантами никогда не попало бы в fullBody.
+    const bodiesByName = new Map(
+      rules.map((r) => [r.name, Array.isArray(r.body) ? r.body : [r.body]]),
+    );
+    const worstLengths = worstLengthByText(rules);
 
     for (let turn = 0; turn < horizon; turn++) {
       const text = texts[turn % texts.length];
@@ -163,13 +232,13 @@ async function runScenario({ name, texts, horizon, realBudget, rules }) {
       const gotNames = new Set(got.applies.map((a) => a.rule));
       demands.push(
         want.applies.reduce(
-          (sum, a, i) => sum + a.body.length + (i ? 2 : 0),
+          (sum, a, i) => sum + worstApplyLength(worstLengths, a) + (i ? 2 : 0),
           0,
         ),
       );
 
       for (const applied of want.applies) {
-        if (applied.body === bodyByName.get(applied.rule))
+        if (bodiesByName.get(applied.rule)?.includes(applied.body))
           fullBody.set(applied.rule, (fullBody.get(applied.rule) ?? 0) + 1);
       }
       for (const rule of wantNames) {
@@ -232,8 +301,9 @@ function leakedStateFiles(sessionIds) {
  * Он не зависит от каденций (в `core.mjs` semantic и каденция — взаимоисключающие ветки), поэтому
  * меряется один раз и служит фоном, поверх которого поиск раскладывает каденс-правила.
  */
-async function measureSemanticBase({ texts, horizon, semanticNames }) {
+async function measureSemanticBase({ texts, horizon, rules, semanticNames }) {
   const dir = mkdtempSync(join(tmpdir(), "irsim-base-"));
+  const worstLengths = worstLengthByText(rules);
   try {
     const engine = await loadEngine("base", DEMAND_BUDGET, dir);
     const lens = new Float64Array(horizon + 1);
@@ -247,7 +317,9 @@ async function measureSemanticBase({ texts, horizon, semanticNames }) {
       });
       for (const applied of got.applies) {
         if (!semanticNames.has(applied.rule)) continue;
-        lens[turn] += applied.body.length;
+        // По худшему варианту — как и профиль спроса: иначе фон, поверх которого поиск
+        // раскладывает каденции, зависел бы от того, какой вариант выпал.
+        lens[turn] += worstApplyLength(worstLengths, applied);
         count[turn] += 1;
       }
     }
@@ -267,6 +339,7 @@ async function runAssign(horizon) {
   const base = await measureSemanticBase({
     texts: scenarioTexts(rules).pathological,
     horizon,
+    rules,
     semanticNames,
   });
   const { assignment, stats, passes } = searchCadences({
@@ -307,6 +380,9 @@ async function runAssign(horizon) {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
+  // Зерно ставится ДО первого динамического импорта движка: `variantRng` в core.mjs
+  // инициализируется на загрузке модуля, и позднее выставленный env он уже не увидит.
+  process.env.IR_VARIANT_SEED = args.seed;
   // Сессии, которыми ходит симулятор: их имена и проверяются на утечку в боевой каталог.
   const ownSessions = ["baseline", "pathological", "base"];
   if (args.assign) await runAssign(args.horizon);
@@ -330,7 +406,9 @@ async function main() {
     );
   }
 
-  console.log(`rules=${rules.length} horizon=${args.horizon} budget=${budget}`);
+  console.log(
+    `rules=${rules.length} horizon=${args.horizon} budget=${budget} seed=${args.seed}`,
+  );
   const problems = [];
 
   for (const r of results) {

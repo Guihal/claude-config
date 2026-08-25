@@ -11,6 +11,7 @@ import {
 } from "/home/penis/.claude/hooks/_ir-helper.mjs";
 import {
   subagentRules,
+  pickVariant,
   SUBAGENT_CHAR_BUDGET,
 } from "/home/penis/.claude/mcp/injection-rules/core.mjs";
 
@@ -35,7 +36,7 @@ if (typeof agentType !== "string" || agentType === "") {
 emitHook(
   "SubagentStart",
   subagentRules(agentType)
-    .map((r) => r.body)
+    .map((r) => pickVariant(r.bodies).text)
     .join("\n\n"),
   SUBAGENT_CHAR_BUDGET,
 );

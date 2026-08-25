@@ -44,7 +44,7 @@
     ],
     "defaultMode": "bypassPermissions"
   },
-  "model": "claude-opus-4-8",
+  "model": "sonnet",
   "hooks": {
     "SessionStart": [
       {

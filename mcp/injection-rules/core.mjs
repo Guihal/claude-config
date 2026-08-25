@@ -40,7 +40,7 @@ const BUFFER_CAP = 30;
 // injection-rules-userprompt.mjs обязан передавать этот же CHAR_BUDGET в emitHook; с дефолтом
 // 2000 нудж task-list молча обрезался на 40 ходах из 200.
 // К стартовому своду (startupRules + SessionStart-хук) бюджет НЕ применяется.
-export const CHAR_BUDGET_DEFAULT = 6900;
+export const CHAR_BUDGET_DEFAULT = 7300;
 
 // Лимит читается из env, потому что симулятор (tools/budget-sim.mjs) обязан измерить СПРОС —
 // сколько правил хотели доставить, — а при боевом лимите отбор ниже молча клипует кандидатов, и
@@ -68,7 +68,9 @@ export const CHAR_BUDGET = readCharBudget();
 // Смешать их — повторить ошибку, из-за которой лимит отбора и лимит emitHook когда-то разъехались.
 // Дефолт = максимум всех ролей + тело самого длинного правила как резерв, вверх до тысячи.
 // Команда воспроизводит расчёт для текущего каталога ролей и правил:
-//   node -e 'import("./core.mjs").then(async m=>{const{readdirSync}=await import("node:fs");const roles=[...new Set(["main","worker","intent-auditor",...readdirSync("/home/penis/.claude/agents").filter(x=>x.endsWith(".md")).map(x=>x.slice(0,-3))])],sets=roles.map(x=>m.subagentRules(x)),max=Math.max(...sets.map(s=>s.reduce((n,r)=>n+r.body.length+r.name.length+3,0))),longest=Math.max(...m.loadRules().map(r=>r.body.length));console.log({max,longest,recommended:Math.ceil((max+longest)/1000)*1000})})'
+// Длина правила считается по САМОМУ ДЛИННОМУ варианту тела: варианты выбираются случайно, и
+// замер по короткому сделал бы переполнение случайным событием.
+//   node -e 'import("./core.mjs").then(async m=>{const{readdirSync}=await import("node:fs");const len=r=>Math.max(...r.bodies.map(b=>b.length));const roles=[...new Set(["main","worker","intent-auditor",...readdirSync("/home/penis/.claude/agents").filter(x=>x.endsWith(".md")).map(x=>x.slice(0,-3))])],sets=roles.map(x=>m.subagentRules(x)),max=Math.max(...sets.map(s=>s.reduce((n,r)=>n+len(r)+r.name.length+3,0))),longest=Math.max(...m.loadRules().map(len));console.log({max,longest,recommended:Math.ceil((max+longest)/1000)*1000})})'
 export const SUBAGENT_CHAR_BUDGET_DEFAULT = 16000;
 
 function readSubagentCharBudget() {
@@ -123,6 +125,73 @@ let _rulesCache = null;
 let _startedAt = Date.now();
 const _sessions = new Set();
 
+// Ранг тира = порядок среза бюджетом: чем важнее правило, тем позже оно вылетает.
+// Правило без `_tier` получает ранг худшего тира и строку в stderr — молчаливого сравнения
+// `undefined` в сортировке не остаётся ни при каком входе (см. tierRank).
+const TIER_RANK = { T0: 0, T1: 1, T2: 2, T3: 3 };
+const TIER_FALLBACK = "T3";
+
+// ── выбор варианта формулировки ─────────────────────────────
+// Зачем варианты вообще: к идентичному повторяющемуся стимулу внимание глохнет, варьирующийся
+// цепляет заново. Варьируется ОБЁРТКА, ядро-процедура во всех вариантах одна (см. `_core`).
+//
+// Рандом имеет ШОВ: `IR_VARIANT_SEED` переводит поток в детерминированный, иначе `Math.random`.
+// Без шва budget-sim/cadence-search мерили бы каждый раз разный профиль спроса и не могли бы
+// служить основанием ни для `--assign`, ни для потолка бюджета.
+// Значение переменной — строка, поэтому она не скармливается PRNG сырой (`Number("seed-a")` =
+// NaN → вырожденный поток), а прогоняется через хеш xmur3.
+function xmur3(str) {
+  let h = 1779033703 ^ str.length;
+  for (let i = 0; i < str.length; i++) {
+    h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
+    h = (h << 13) | (h >>> 19);
+  }
+  return () => {
+    h = Math.imul(h ^ (h >>> 16), 2246822507);
+    h = Math.imul(h ^ (h >>> 13), 3266489909);
+    return (h ^= h >>> 16) >>> 0;
+  };
+}
+
+// SplitMix32, а не mulberry32: автор канонического обзора JS-PRNG признал, что mulberry32
+// пропускает около трети всех 32-битных значений, а на равномерном выборе из 2–4 вариантов
+// смещение потока — ровно то, чего варианты не должны допускать.
+// https://github.com/bryc/code/blob/master/jshash/PRNGs.md
+function splitmix32(a) {
+  return () => {
+    a = (a + 0x9e3779b9) | 0;
+    let t = a ^ (a >>> 16);
+    t = Math.imul(t, 0x21f0aaad);
+    t = t ^ (t >>> 15);
+    t = Math.imul(t, 0x735a2d97);
+    return ((t = t ^ (t >>> 15)) >>> 0) / 4294967296;
+  };
+}
+
+const variantRng = (() => {
+  const seed = process.env.IR_VARIANT_SEED;
+  if (seed === undefined || seed === "") return Math.random;
+  return splitmix32(xmur3(seed)());
+})();
+
+/**
+ * Bag без повтора подряд: последний показанный индекс исключается из кандидатов.
+ * Чистый рандом при 3 вариантах повторял бы ту же строку подряд в ~33 % случаев, а варианты
+ * заведены ровно ради того, чтобы повтора подряд НЕ было.
+ * @param {string[]} list — варианты (непустой).
+ * @param {number} [lastIndex] — индекс, показанный в прошлый раз; undefined = истории нет.
+ * @returns {{text: string, index: number}} выбранный текст и его индекс (индекс запоминает вызывающий).
+ */
+export function pickVariant(list, lastIndex) {
+  if (!Array.isArray(list) || list.length === 0)
+    throw new Error("pick-variant-empty");
+  if (list.length === 1) return { text: list[0], index: 0 };
+  const pool = [];
+  for (let i = 0; i < list.length; i++) if (i !== lastIndex) pool.push(i);
+  const index = pool[Math.floor(variantRng() * pool.length)];
+  return { text: list[index], index };
+}
+
 // ── sanitization ────────────────────────────────────────────
 export function sanitizeSessionId(id) {
   if (!id) return "anonymous";
@@ -148,10 +217,52 @@ function compilePatterns(values) {
 }
 
 // ── rule object ─────────────────────────────────────────────
+/**
+ * Приводит `string | string[]` к массиву вариантов. Строка — это один вариант: формат правил
+ * обратно совместим, поле массивом становится только там, где варианты реально написаны.
+ * @param {unknown} value — уже проверено вызывающим, что это строка или массив.
+ * @param {string} field — префикс кода ошибки (`body`, `remind-suffix`).
+ */
+function normalizeVariants(value, field) {
+  const list = Array.isArray(value) ? value : [value];
+  if (list.length === 0) throw new Error(`${field}-variants-empty`);
+  for (const item of list) {
+    if (typeof item !== "string") throw new Error(`${field}-not-string`);
+    if (item.trim() === "") throw new Error(`${field}-variant-empty`);
+  }
+  return list;
+}
+
+function tierRank(name, tier) {
+  if (tier === undefined) {
+    // Fail-safe на правило, которому поле забыли проставить: молчаливое `undefined` в тайбрейке
+    // сортировки означало бы произвольный порядок среза, а он обязан идти по важности.
+    console.error(`[injection-rules] no-tier: ${name}`);
+    return TIER_RANK[TIER_FALLBACK];
+  }
+  const rank = TIER_RANK[tier];
+  if (rank === undefined) throw new Error("tier-invalid");
+  return rank;
+}
+
 function makeRule(json) {
   if (!json || typeof json !== "object") throw new Error("root-not-object");
   if (typeof json.name !== "string") throw new Error("name-not-string");
-  if (typeof json.body !== "string") throw new Error("body-not-string");
+  if (typeof json.body !== "string" && !Array.isArray(json.body))
+    throw new Error("body-not-string");
+  const bodies = normalizeVariants(json.body, "body");
+
+  // `_core` — якоря ядра процедуры: лексемы, без которых вариант перестаёт быть тем же правилом.
+  // Движок их не использует при отборе, но валидирует здесь: битое поле должно ронять правило в
+  // том же месте, что и остальные, а не всплывать в линтере через неделю.
+  if (json._core !== undefined) {
+    if (!Array.isArray(json._core) || json._core.length === 0)
+      throw new Error("core-not-array");
+    if (!json._core.every((a) => typeof a === "string" && a.trim() !== ""))
+      throw new Error("core-anchor-empty");
+  }
+
+  const rank = tierRank(json.name, json._tier);
   if (!Array.isArray(json.apply) || json.apply.length === 0)
     throw new Error("apply-empty");
   if (!json.apply.every((a) => typeof a === "string"))
@@ -201,7 +312,8 @@ function makeRule(json) {
   }
   const sendOnSubagent = json.send_on_subagent === true;
 
-  let remindEvery, remindSuffix;
+  let remindEvery;
+  let remindSuffixes = [];
   let remindAny = [],
     remindAll = [],
     remindNone = [];
@@ -215,9 +327,9 @@ function makeRule(json) {
       remindEvery = r.every_n_turns;
     }
     if (r.suffix !== undefined) {
-      if (typeof r.suffix !== "string")
+      if (typeof r.suffix !== "string" && !Array.isArray(r.suffix))
         throw new Error("remind-suffix-not-string");
-      remindSuffix = r.suffix;
+      remindSuffixes = normalizeVariants(r.suffix, "remind-suffix");
     }
     if (r.when && typeof r.when === "object") {
       const w = r.when;
@@ -237,14 +349,20 @@ function makeRule(json) {
     }
   }
 
+  // Поля `body`/`remindSuffix` в единственном числе здесь НЕТ намеренно: скрытый геттер,
+  // отдающий «текущий» вариант, дал бы два разных текста на два чтения — хук измерил бы одну
+  // длину, а отправил другую. Выбор варианта делается явным вызовом pickVariant.
   return {
     name: json.name,
-    body: json.body,
+    bodies,
+    core: json._core ?? [],
+    tier: json._tier ?? TIER_FALLBACK,
+    tierRank: rank,
     wildcard,
     includes,
     excludes,
     remindEvery,
-    remindSuffix,
+    remindSuffixes,
     remindAny,
     remindAll,
     remindNone,
@@ -323,7 +441,9 @@ function readStateFile(sessionId) {
     // ENOENT — сессии ещё нет; битый/усечённый JSON (напр. гонка записи двух хуков) НЕ роняет
     // хук: краш стоп-хука хуже потери каденс-стейта одной сессии — берём свежее состояние.
     if (e.code !== "ENOENT") {
-      console.error(`[injection-rules] state read ${sessionId}: ${e.message}, беру свежее`);
+      console.error(
+        `[injection-rules] state read ${sessionId}: ${e.message}, беру свежее`,
+      );
     }
     return {
       sessionId,
@@ -390,10 +510,16 @@ function saveState(sessionId, state) {
 }
 
 // ── public API ──────────────────────────────────────────────
+/**
+ * Каталог для чтения снаружи. Отдаёт ВСЕ варианты текста, а не один выбранный: инструмент
+ * существует ради просмотра каталога, и показать варианты честнее, чем показать случайный.
+ * Какой из них уедет в контекст — показывает `evaluate`.
+ */
 export function listRules() {
   return loadRules().map((r) => ({
     name: r.name,
-    body: r.body,
+    bodies: r.bodies,
+    tier: r.tier,
     apply: r.wildcard ? ["*"] : [...r.includes],
   }));
 }
@@ -476,6 +602,11 @@ export function evaluate({ sessionId, source, text, tick, agentId = "main" }) {
   // 2. tick + evaluate
   if (tick) {
     state.turnIndex++;
+    // Последний показанный вариант каждого правила: bag без повтора подряд. Живёт в том же
+    // файле состояния, что turnIndex и cooldown — новых сторов задача не заводит.
+    // Состояние старой сессии поля не имеет, отсюда инициализация на каждом тике.
+    if (!state.lastVariant || typeof state.lastVariant !== "object")
+      state.lastVariant = {};
     // Первый тик сессии = единственный момент уборки: readdir по каталогу состояний на КАЖДОМ
     // ходу — та же неограниченная работа, только по времени вместо диска.
     if (state.turnIndex === 1) pruneStaleState(Date.now());
@@ -502,19 +633,23 @@ export function evaluate({ sessionId, source, text, tick, agentId = "main" }) {
       const slicedTexts = state.buffers[source].slice(-sliceCount);
 
       let fires = false;
-      let body = null;
+      // Из какого списка вариантов берётся текст. Выбор откладывается до конца проверок:
+      // правило, погашенное cooldown'ом, не должно жечь вариант и двигать поток случайности.
+      let variants = null;
 
       // semantic trigger
       if (ruleHasSemantic(rule)) {
         if (semanticHit(rule, slicedTexts)) {
           fires = true;
-          body = rule.body;
+          variants = rule.bodies;
         }
       } else if (rule.remindEvery) {
         // every_n_turns cadence
         if (state.turnIndex % rule.remindEvery === 0) {
           fires = true;
-          body = rule.remindSuffix || rule.body;
+          variants = rule.remindSuffixes.length
+            ? rule.remindSuffixes
+            : rule.bodies;
         }
       }
 
@@ -529,17 +664,23 @@ export function evaluate({ sessionId, source, text, tick, agentId = "main" }) {
       }
 
       if (fires) {
+        const picked = pickVariant(variants, state.lastVariant[rule.name]);
         candidates.push({
           rule: rule.name,
-          body,
+          body: picked.text,
+          _variantIndex: picked.index,
           _priority: ruleHasSemantic(rule) ? 1 : 0,
+          _tierRank: rule.tierRank,
         });
       }
     }
 
-    // 3. priority: semantic > remind; alphabetical tiebreak
+    // 3. priority: semantic > remind; затем ВАЖНОСТЬ (тир), и лишь внутри тира — алфавит.
+    // Алфавит тайбрейком в одиночку означал бы, что бюджет роняет правила по номеру файла:
+    // «последний в каталоге» превращалось в «первым выкинут», хотя важность тут ни при чём.
     candidates.sort((a, b) => {
       if (a._priority !== b._priority) return b._priority - a._priority;
+      if (a._tierRank !== b._tierRank) return a._tierRank - b._tierRank;
       return a.rule < b.rule ? -1 : a.rule > b.rule ? 1 : 0;
     });
 
@@ -560,6 +701,10 @@ export function evaluate({ sessionId, source, text, tick, agentId = "main" }) {
       }
       applies.push({ rule: c.rule, body: c.body });
       totalChars += sep + c.body.length;
+      // Вариант запоминается ТОЛЬКО у доставленного правила — по той же причине, что и штамп
+      // cooldown ниже: срезанный бюджетом текст агент не видел, и «не повторяться подряд»
+      // должно считаться от показанного, а не от отобранного.
+      state.lastVariant[c.rule] = c._variantIndex;
       // Штамп cooldown ставится ТОЛЬКО доставленному правилу. Раньше он стоял в цикле кандидатов,
       // и срезанное бюджетом правило замолкало ещё на cooldown_turns ходов, ни разу не долетев:
       // потеря удваивалась и была невидима.

@@ -8,12 +8,15 @@
 // точка отказа. Лимита нет намеренно: свод должен вернуться целиком, CHAR_BUDGET режет только
 // пер-тиковую доставку.
 import { emitHook } from "/home/penis/.claude/hooks/_ir-helper.mjs";
-import { startupRules } from "/home/penis/.claude/mcp/injection-rules/core.mjs";
+import {
+  startupRules,
+  pickVariant,
+} from "/home/penis/.claude/mcp/injection-rules/core.mjs";
 
 emitHook(
   "PostCompact",
   startupRules()
-    .map((r) => r.body)
+    .map((r) => pickVariant(r.bodies).text)
     .join("\n\n"),
   Infinity,
 );
