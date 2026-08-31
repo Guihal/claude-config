@@ -9,7 +9,7 @@ description: >
   orchestrator running a crystal-loop before the plan loop; not for plan-quality
   review (use `critic` / `task-researcher` for that).
 model: inherit
-tools: Read, Bash, Grep, Glob, Write
+tools: "*"
 ---
 
 # Crystal Reviewer

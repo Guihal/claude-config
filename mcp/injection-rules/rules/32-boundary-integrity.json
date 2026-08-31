@@ -1,0 +1,19 @@
+{
+  "name": "32-boundary-integrity",
+  "apply": ["*"],
+  "_tier": "T1",
+  "send_on_start": true,
+  "send_on_subagent": true,
+  "_derives": "ideal-agent.md → Думай о жизни решения; Советчик, а не соглашатель",
+  "body": "[32-boundary-integrity] ГРАНИЦА МОДУЛЯ — КОНТРАКТ, НЕ СОГЛАШЕНИЕ ПО ИМЕНАМ. Потребитель обращается к владельцу поведения через его публичную границу; не тянет его internal state, private representation или внутренние модули наружу.\nНовая зависимость обязана идти в направлении владения: compile-time dependency — caller зависит от abstraction, которой владеет owner. Runtime call direction (callback, event) может отличаться от compile-time dependency direction. Consumer-owned ports допустимы, если interface владельца не расширяется ради одного кейса.\nФАЛЬСИФИКАТОР: явный boundary adapter/facade допустим, если переводит реальный внешний contract. Новый слой под гипотетический cycle запрещён. STOP: нет reach-through/cycle через чужие internals, public surface минимален.\nГРАНИЦА: выбор уровня абстракции — rule 26-abstraction-ladder и rule 25-simplest-stable. Behavior reuse — rule 28-one-behavior-one-entity. Replacement closure — rule 33-replacement-closure. Failure mapping на системной границе — rule 34-failure-is-not-default.\nREVIEWER GATE: critic/architect/reviewer ищет reach-through к private representation, обратные зависимости и message chains через чужие internals; boundary adapter — допустимый паттерн.",
+  "remind": {
+    "every_n_turns": 24,
+    "suffix": [
+      "\n\n[32-boundary-integrity] ГРАНИЦА = КОНТРАКТ. Потребитель вызывает публичную границу, а не лезет во внутренности. Compile-time dependency: caller → abstraction owner. Runtime direction может отличаться. Reach-through и cycle — стоп.",
+      "\n\n[32-boundary-integrity] НЕ ТЯНИ ВНУТРЕННОСТИ. Public surface — минимален. Reach-through через private internals, обратные зависимости и message chains через чужой код — нарушение boundary. Adapter/facade допустим.",
+      "\n\n[32-boundary-integrity] DEPENDENCY FOLLOWS OWNERSHIP. Compile-time: caller → owner abstraction. Runtime direction (callback, event) может отличаться. Cycle через internals — пересмотри ownership."
+    ]
+  },
+  "_comment": "Новое правило 2026-08-26. Закрывает дыру между абстрактным ladder/substrate и конкретными boundary violations: reach-through, обратные зависимости, расширение чужого interface ради одного кейса. T1: неправильные dependency direction ломают модульность раньше, чем replacement или failure. Compile-time vs runtime direction distinction нужна, потому что events/callbacks合法но идут «обратно» при прямом compile-time ownership. Cadence 24 поисковым скриптом.",
+  "_core": ["boundary", "dependency", "reach-through"]
+}

@@ -6,8 +6,8 @@ description: >
   emitting ONE JSON verdict with fix_target routing (impl|spec|both|escalate). Invoked by the
   Operator skill after the Executor commits a packet. NOT for RLM-cycle plan review — use the
   `critic` subagent for that.
-tools: Read, Bash, Grep, Glob, Edit, Write
 model: inherit
+tools: "*"
 ---
 
 # Constitution Reviewer

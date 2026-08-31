@@ -8,8 +8,8 @@ description: >
   intercom) are absent here; honors project rules — search before stating present-day
   facts, URL on every claim, output language follows the task language (Russian is the
   user default).
-tools: mcp__searxng__searxng_search, mcp__searxng__searxng_suggest, WebFetch, Read, Write, Bash, Glob
 model: inherit
+tools: "*"
 ---
 
 # Researcher

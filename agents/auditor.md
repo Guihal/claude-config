@@ -9,8 +9,8 @@ description: >
   code never shows up as a '+' line in any single diff, so per-packet gates miss
   it. The Auditor reads the WHOLE source + every INVARIANT: clause + the defect
   ledger, never the diff. Invoked by the Operator skill.
-tools: Read, Bash, Grep, Glob, Edit, Write
 model: inherit
+tools: "*"
 ---
 
 # Auditor

@@ -1,0 +1,19 @@
+{
+  "name": "33-replacement-closure",
+  "apply": ["*"],
+  "_tier": "T2",
+  "send_on_start": true,
+  "send_on_subagent": true,
+  "_derives": "ideal-agent.md → Думай о жизни решения",
+  "body": "[33-replacement-closure] НОВЫЙ ПУТЬ НЕ СЧИТАЕТСЯ ЗАМЕНОЙ, ПОКА СТАРЫЙ ЖИВ. Перед заменой перечисли producers, consumers, persisted forms и compatibility surface.\nРАЗРЕШЁН ОДИН УПРАВЛЯЕМЫЙ ПЕРЕХОД expand→migrate→contract с convergence condition, routing point, владельцем, rollback и проверяемым exit condition. После convergence старый executor/branch/adapter/fallback удаляется; повторным поиском докажи, что intended consumers migrated.\nФАЛЬСИФИКАТОР: два canonical пути запрещены. Управляемый parallel path допустим при разных invariants и наличии convergence condition. STOP: один canonical path после convergence и нет необъяснённых old consumers.\nГРАНИЦА: общая дедупликация поведения — rule 28-one-behavior-one-entity. Crash recovery — rule 23-reproduce-before-fix. Scope authority — rule 15-scope-and-report и rule 31-irreversible-and-risk.\nREVIEWER GATE: critic/architect/reviewer проверяет наличие convergence condition и единого routing point при каждом заявлении замены; отсутствие удаления старого пути после convergence — verdict high.",
+  "remind": {
+    "every_n_turns": 28,
+    "suffix": [
+      "\n\n[33-replacement-closure] ЗАМЕНА ≠ НОВЫЙ ПУТЬ РЯДОМ. Перед заменой: producers, consumers, persisted forms, compatibility surface. Один expand→migrate→contract с convergence condition и routing point. Старый путь — удалить после convergence.",
+      "\n\n[33-replacement-closure] ДВА CANONICAL ПУТИ — ЗАПРЕЩЕНЫ. Old path живёт пока идёт управляемый миграционный переход. После convergence — удаление с повторным поиском оставшихся consumers.",
+      "\n\n[33-replacement-closure] МИГРАЦИЯ ЗАКРЫВАЕТСЯ. Parallel path допустим при разных invariants. После convergence — один canonical path, old path удалён, consumers проверены."
+    ]
+  },
+  "_comment": "Новое правило 2026-08-26. Закрывает типичный agent codebase-паттерн: «заменяем механизм» фактически создаёт V2 рядом с V1 без convergence. T2: replacement closure важен, но встречается реже, чем ownership/boundary ошибки (T1). Не расширяет 28: migration lifecycle — отдельный контракт от behavior unity. Cadence 28 поисковым скриптом. checkable exit condition и rollback обязательны для operational closure.",
+  "_core": ["expand", "migrate", "contract"]
+}

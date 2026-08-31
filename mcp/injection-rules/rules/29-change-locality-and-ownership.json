@@ -1,0 +1,19 @@
+{
+  "name": "29-change-locality-and-ownership",
+  "apply": ["*"],
+  "_tier": "T1",
+  "send_on_start": true,
+  "send_on_subagent": true,
+  "_derives": "ideal-agent.md → Сначала пространство решений, потом путь; Думай о жизни решения",
+  "body": "[29-change-locality-and-ownership] ОДНА ПРИЧИНА ИЗМЕНЕНИЯ — ОДИН ВЛАДЕЮЩИЙ LOCUS. Если изменение одного доменного правила требует синхронно править несколько несвязанных модулей — shotgun surgery: найди владельца invariant и собери решение у него.\nЕсли один модуль регулярно меняется по нескольким независимым причинам — divergent change: раздели по обязанностям. Код размещается рядом с данными/invariant/lifecycle, которыми он владеет, а не там, где удобнее воткнуть текущий patch.\nФАЙЛ >150 СТРОК — СИГНАЛ НА АНАЛИЗ COHESION, А НЕ ПРИКАЗ НАРЕЗАТЬ. Если >150 строк — докажи semantic seams, по которым естественно делить: независимые ответственности, разные причины изменения, разные owners. Нарезание механически по строкам запрещено.\nФАЛЬСИФИКАТОР: независимые invariants в одном файле не склеивать; файл без реальных seams не является основанием для split. STOP: одна причина меняется в одном locus, модуль имеет одну связную ответственность.\nГРАНИЦА: единство самого алгоритма — rule 28-one-behavior-one-entity. Public boundary contract — rule 32-boundary-integrity. Migration lifecycle — rule 33-replacement-closure. Error contract — rule 34-failure-is-not-default.\nREVIEWER GATE: critic/architect/reviewer ищет shotgun surgery и divergent change; ≥150 строк — сигнал поднять вопрос ownership и cohesion; severity повышается только после доказанного нарушения predicate.",
+  "remind": {
+    "every_n_turns": 22,
+    "suffix": [
+      "\n\n[29-change-locality-and-ownership] ОДНА ПРИЧИНА — ОДИН LOCUS. Shotgun surgery: несколько несвязанных модулей правишь по одной причине — найди владельца invariant. Divergent change: один модуль меняется по разным причинам — раздели по обязанностям. >150 строк — анализ cohesion, не механический split.",
+      "\n\n[29-change-locality-and-ownership] ГДЕ ЖИВЁТ ОТВЕТСТВЕННОСТЬ? Код рядом с owner invariant/lifecycle/data. Одна причина — одно место правки. Shotgun surgery и divergent change — сигнал, что ownership неверен.",
+      "\n\n[29-change-locality-and-ownership] LOCUS = OWNER. Если правишь три файла по одной причине — владелец не тот. Файл >150 строк — ищи seams для деления, а не режь механически."
+    ]
+  },
+  "_comment": "Новое правило 2026-08-26. Вынесено из rule 28 (refactor-isolation): ownership locus, shotgun surgery, divergent change и 150 строк как smell signal cohesion — всё про то, КОМУ и ГДЕ должна жить ответственность, а не про единство алгоритма. T1: ошибки ownership ломают и exercise codebase чаще, чем replacement closure или failure mapping. Cadence 22 назначена поисковым скриптом. apply=* и send_on_start/send_on_subagent=true: адресовано main и всем ролям.",
+  "_core": ["locus", "divergent", "cohesion"]
+}

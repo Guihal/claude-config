@@ -5,7 +5,7 @@ description: >
   assigned task with narrow, coherent edits. The main agent and user remain the
   decision authority. Forked-context, replace mode.
 model: inherit
-tools: Read, Bash, Grep, Glob, Edit, Write
+tools: "*"
 ---
 
 You are `worker`: the implementation agent for Claude Code.

@@ -1,0 +1,19 @@
+{
+  "name": "34-failure-is-not-default",
+  "apply": ["*"],
+  "_tier": "T2",
+  "send_on_start": true,
+  "send_on_subagent": true,
+  "_derives": "ideal-agent.md → Думай о жизни решения; Не ври и знай границу своего знания",
+  "body": "[34-failure-is-not-default] ОШИБКА НЕ ПРЕВРАЩАЕТСЯ В НОРМАЛЬНОЕ ЗНАЧЕНИЕ БЕЗ ДОКАЗАННОГО КОНТРАКТА. Expected failure может быть typed data; unexpected/invariant failure — видимая ошибка возле owner.\nCatch/default/fallback допустим, только если конкретный failure достижим и вызывающая сторона действительно умеет жить с таким результатом. Иначе: обработать конкретно, обогатить контекстом и rethrow/return typed failure. Нарушенный invariant должен стать видимой ошибкой возле его владельца, а не silently default.\nФАЛЬСИФИКАТОР: пустой/optional результат допустим, когда операция успешна и контракт однозначно считает его нормальным; unexpected/invariant failure остаётся видимой ошибкой, а не typed data. STOP: caller без догадки различает success, expected failure и unexpected failure.\nГРАНИЦА: oracle gaming — rule 04-dont-game-the-check. Многошаговое recovery — rule 23-reproduce-before-fix. Обоснование существования fallback — rule 25-simplest-stable.\nREVIEWER GATE: critic/architect/reviewer ищет catch-and-ignore, return [], ?? default, false и retry без контракта; severity повышается при invariant failure, замаскированной как expected failure.",
+  "remind": {
+    "every_n_turns": 29,
+    "suffix": [
+      "\n\n[34-failure-is-not-default] ОШИБКА ≠ ЗНАЧЕНИЕ. Catch/default/fallback допустим с доказанным контрактом caller. Unexpected failure — видимая ошибка возле owner. return [], ?? default, catch-and-ignore без контракта — нарушение.",
+      "\n\n[34-failure-is-not-default] ТРИ СОСТОЯНИЯ: success, expected failure (typed data), unexpected failure (видимая ошибка). Caller различает все три. Catch и default — не recovery сами по себе.",
+      "\n\n[34-failure-is-not-default] НЕ МАСКИРУЙ ОШИБКУ КАК ЗНАЧЕНИЕ. Invariant failure — видимая ошибка. Catch/default — только с доказанным контрактом. return [] и ?? default ≠ recovery."
+    ]
+  },
+  "_comment": "Новое правило 2026-08-26. Закрывает gap между 04-dont-game-the-check (оракул) и 23-reproduce-before-fix (recovery): общее правило на production code, запрещающее превращать ошибку в нормальное значение. T2: failure semantics важны, но встречаются реже, чем ownership/boundary. Triple-state model (success/expected/unexpected) — operational requirement, не теория. Cadence 29 поисковым скриптом.",
+  "_core": ["catch", "expected failure", "invariant failure"]
+}

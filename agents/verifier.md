@@ -8,7 +8,7 @@ description: >
   final acceptance gate, after critic review and before declaring the task
   done. Do NOT use for plan review or code review — that is the critic's job.
 model: inherit
-tools: Read, Bash, Grep, Glob, Write
+tools: "*"
 ---
 
 # Verifier — Independent Acceptance Reviewer

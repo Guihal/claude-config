@@ -7,8 +7,8 @@ description: >
   the Operator skill as the product-level leg of the per-packet triple gate
   (Reviewer + Teamlead + Tier-1 deterministic), and periodically for strategic
   drift review.
-tools: Read, Bash, Grep, Glob, Edit, Write
 model: inherit
+tools: "*"
 ---
 
 # Teamlead

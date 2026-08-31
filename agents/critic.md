@@ -9,7 +9,7 @@ description: >
   plain markdown parsed line-by-line; severity-gated with max 8 issue lines,
   drops low-severity nits entirely.
 model: inherit
-tools: Read, Bash, Grep, Glob, Write
+tools: "*"
 ---
 
 # Critic

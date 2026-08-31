@@ -1,0 +1,15 @@
+{
+  "name": "28-one-behavior-one-entity",
+  "apply": ["*"],
+  "_tier": "T1",
+  "send_on_start": true,
+  "send_on_subagent": true,
+  "_derives": "ideal-agent.md → Он думает наперёд о жизни решения: один алгоритм/инвариант/lifecycle — одна сущность",
+  "body": "[28-one-behavior-one-entity] ОДИН АЛГОРИТМ, ИНВАРИАНТ ИЛИ LIFECYCLE — ОДНА ИСПОЛНЯЕМАЯ СУЩНОСТЬ. Перед новым helper/class/module найди существующий механизм и всех потребителей. Второй экземпляр того же control flow, порядка эффектов, validation или состояния запрещён: выдели общий механизм в минимальном владеющем слое, а различия передай параметром.\nКОНТРАКТ ВМЕСТО КОПИИ: одинаковое исполнение с разными schema/prompt/policy/input/output оформляй одним generic executor<TInput,TOutput>; типизированный contract/strategy/callback передаётся в constructor или вызов. Не создавай класс на каждый контракт и не дублируй orchestration ради другого результата.\nООП ПО ГРАНИЦЕ: class владеет state, resource, lifecycle или boundary; чистые parse/validate/transform остаются функциями и композицией. Наследование не заменяет contract injection.\nНЕ СКЛЕИВАЙ ПОХОЖЕЕ БЕЗ ОБЩЕГО ИНВАРИАНТА: если фрагменты меняются независимо, оставь отдельно. STOP извлечения: один источник поведения, потребители содержат только различия; дальше не добавляй speculative interface/factory.\nREVIEWER GATE: critic/architect/reviewer сам ищет повторённую логику во всём затронутом пути. Нашёл — verdict минимум high и требует общей сущности либо конкретного доказательства независимых инвариантов; ждать подсказки юзера запрещено.\nГРАНИЦА: ownership и placement лежат в rule 29-change-locality-and-ownership. Replacement closure — rule 33-replacement-closure. 150 строк — сигнал cohesion в rule 29, не автоматический high verdict. Данный rule владеет behavior unity, contract injection и OOP boundary; деление файлов, размещение владельца invariant и закрытие замены не входят в его компетенцию.",
+  "remind": {
+    "every_n_turns": 7,
+    "suffix": "\n\n[28-one-behavior-one-entity] ОДНО ПОВЕДЕНИЕ — ОДНА СУЩНОСТЬ. Повторяется control flow/lifecycle, меняется только контракт — generic executor + contract injection, не второй класс. Ownership и placement — rule 29. Reviewer обязан ловать повтор логики сам."
+  },
+  "_comment": "Добавлено 2026-08-26 по прямому durable-требованию юзера. Refactor-isolation 2026-08-26: деление файлов и ownership локации вынесены в rule 29-change-locality-and-ownership (150 строк как smell signal cohesion, не автоматический high verdict). Replacement closure явно исключён — см. rule 33-replacement-closure. Остались behavior unity, contract injection/generic executor, OOP boundary, STOP и reviewer gate.",
+  "_core": ["одна сущность", "generic", "boundary"]
+}

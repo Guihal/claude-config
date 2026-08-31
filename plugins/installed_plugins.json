@@ -4,11 +4,11 @@
     "frontend-design@claude-plugins-official": [
       {
         "scope": "user",
-        "installPath": "/home/penis/.claude/plugins/cache/claude-plugins-official/frontend-design/b2e69010b088",
-        "version": "b2e69010b088",
+        "installPath": "/home/penis/.claude/plugins/cache/claude-plugins-official/frontend-design/ed404106fcd8",
+        "version": "ed404106fcd8",
         "installedAt": "2026-07-06T14:09:07.302Z",
-        "lastUpdated": "2026-08-24T13:43:01.492Z",
-        "gitCommitSha": "b2e69010b088d5aa243a88e103adbfab92f77814"
+        "lastUpdated": "2026-08-28T23:26:46.341Z",
+        "gitCommitSha": "3003b8e0b4c21e333e05098cd8129584160d17cb"
       }
     ],
     "code-simplifier@claude-plugins-official": [
@@ -23,21 +23,21 @@
     "playwright@claude-plugins-official": [
       {
         "scope": "user",
-        "installPath": "/home/penis/.claude/plugins/cache/claude-plugins-official/playwright/b2e69010b088",
-        "version": "b2e69010b088",
+        "installPath": "/home/penis/.claude/plugins/cache/claude-plugins-official/playwright/ed404106fcd8",
+        "version": "ed404106fcd8",
         "installedAt": "2026-07-06T14:09:07.302Z",
-        "lastUpdated": "2026-08-24T13:43:01.492Z",
-        "gitCommitSha": "b2e69010b088d5aa243a88e103adbfab92f77814"
+        "lastUpdated": "2026-08-28T23:26:46.342Z",
+        "gitCommitSha": "3003b8e0b4c21e333e05098cd8129584160d17cb"
       }
     ],
     "skill-creator@claude-plugins-official": [
       {
         "scope": "user",
-        "installPath": "/home/penis/.claude/plugins/cache/claude-plugins-official/skill-creator/b2e69010b088",
-        "version": "b2e69010b088",
+        "installPath": "/home/penis/.claude/plugins/cache/claude-plugins-official/skill-creator/ed404106fcd8",
+        "version": "ed404106fcd8",
         "installedAt": "2026-07-06T14:09:07.302Z",
-        "lastUpdated": "2026-08-24T13:43:01.491Z",
-        "gitCommitSha": "b2e69010b088d5aa243a88e103adbfab92f77814"
+        "lastUpdated": "2026-08-28T23:26:46.342Z",
+        "gitCommitSha": "3003b8e0b4c21e333e05098cd8129584160d17cb"
       }
     ],
     "ralph-loop@claude-plugins-official": [
@@ -109,11 +109,11 @@
     "context7@claude-plugins-official": [
       {
         "scope": "user",
-        "installPath": "/home/penis/.claude/plugins/cache/claude-plugins-official/context7/b2e69010b088",
-        "version": "b2e69010b088",
+        "installPath": "/home/penis/.claude/plugins/cache/claude-plugins-official/context7/ed404106fcd8",
+        "version": "ed404106fcd8",
         "installedAt": "2026-08-09T22:11:30.289Z",
-        "lastUpdated": "2026-08-24T13:43:01.492Z",
-        "gitCommitSha": "b2e69010b088d5aa243a88e103adbfab92f77814"
+        "lastUpdated": "2026-08-28T23:26:46.342Z",
+        "gitCommitSha": "3003b8e0b4c21e333e05098cd8129584160d17cb"
       }
     ],
     "claude-md-management@claude-plugins-official": [

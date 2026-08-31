@@ -9,8 +9,8 @@ description: >
   for non-trivial plans (depth=standard|complex). Output
   contract matches `critic`: MD block with ok / phase / feedback /
   additional; rule-name prefix `tres-` for cross-reviewer dedupe.
-tools: mcp__searxng__searxng_search, mcp__searxng__searxng_suggest, WebFetch, Read, Grep, Glob, Bash, Write
 model: inherit
+tools: "*"
 ---
 
 # Task-Researcher

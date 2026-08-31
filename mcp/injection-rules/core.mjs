@@ -39,7 +39,8 @@ const BUFFER_CAP = 30;
 // ВАЖНО: бюджет отбора — не единственный лимит. Хук доставки режет собственный вывод, поэтому
 // injection-rules-userprompt.mjs обязан передавать этот же CHAR_BUDGET в emitHook; с дефолтом
 // 2000 нудж task-list молча обрезался на 40 ходах из 200.
-// К стартовому своду (startupRules + SessionStart-хук) бюджет НЕ применяется.
+// К стартовому своду (startupRules + SessionStart-хук и SubagentStart) бюджет НЕ применяется.
+// SubagentStart использует Infinity, как SessionStart.
 export const CHAR_BUDGET_DEFAULT = 7300;
 
 // Лимит читается из env, потому что симулятор (tools/budget-sim.mjs) обязан измерить СПРОС —
@@ -63,33 +64,6 @@ function readCharBudget() {
 }
 
 export const CHAR_BUDGET = readCharBudget();
-
-// Разовая доставка набора при спавне субагента — НЕ пер-тиковый лимит, поэтому свой конфиг.
-// Смешать их — повторить ошибку, из-за которой лимит отбора и лимит emitHook когда-то разъехались.
-// Дефолт = максимум всех ролей + тело самого длинного правила как резерв, вверх до тысячи.
-// Команда воспроизводит расчёт для текущего каталога ролей и правил:
-// Длина правила считается по САМОМУ ДЛИННОМУ варианту тела: варианты выбираются случайно, и
-// замер по короткому сделал бы переполнение случайным событием.
-//   node -e 'import("./core.mjs").then(async m=>{const{readdirSync}=await import("node:fs");const len=r=>Math.max(...r.bodies.map(b=>b.length));const roles=[...new Set(["main","worker","intent-auditor",...readdirSync("/home/penis/.claude/agents").filter(x=>x.endsWith(".md")).map(x=>x.slice(0,-3))])],sets=roles.map(x=>m.subagentRules(x)),max=Math.max(...sets.map(s=>s.reduce((n,r)=>n+len(r)+r.name.length+3,0))),longest=Math.max(...m.loadRules().map(len));console.log({max,longest,recommended:Math.ceil((max+longest)/1000)*1000})})'
-export const SUBAGENT_CHAR_BUDGET_DEFAULT = 16000;
-
-function readSubagentCharBudget() {
-  const raw = process.env.IR_SUBAGENT_CHAR_BUDGET;
-  if (raw === undefined || raw === "") return SUBAGENT_CHAR_BUDGET_DEFAULT;
-  const parsed = Number(raw);
-  if (!Number.isInteger(parsed) || parsed < 1) {
-    console.error(
-      `[injection-rules] IR_SUBAGENT_CHAR_BUDGET=${raw} невалиден (нужно целое ≥ 1), беру дефолт ${SUBAGENT_CHAR_BUDGET_DEFAULT}`,
-    );
-    return SUBAGENT_CHAR_BUDGET_DEFAULT;
-  }
-  console.error(
-    `[injection-rules] IR_SUBAGENT_CHAR_BUDGET override: ${parsed}`,
-  );
-  return parsed;
-}
-
-export const SUBAGENT_CHAR_BUDGET = readSubagentCharBudget();
 
 // Сколько дней молчания переживает состояние сессии. Состояние копилось по файлу на сессию и не
 // убиралось никогда: замер 2026-08-19 — 324 файла / 36 МБ за 25 дней, ~40 новых в сутки, то есть
@@ -558,8 +532,9 @@ export function status(sessionId) {
     uptime_ms: Date.now() - _startedAt,
     // Наружу — чтобы паритет лимита у MCP-сервера (собранный бандл) и у хуков (импорт core.mjs)
     // можно было проверить командой, а не верой в то, что бандл пересобран.
+    // SubagentStart использует Infinity (как SessionStart), поэтому subagent_char_budget
+    // удалён — budget измеряется только пер-тиковой доставкой (CHAR_BUDGET).
     char_budget: CHAR_BUDGET,
-    subagent_char_budget: SUBAGENT_CHAR_BUDGET,
     state_ttl_days: STATE_TTL_DAYS,
   };
   if (!sessionId) return base;

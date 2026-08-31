@@ -10,8 +10,8 @@ description: >
   when a caller explicitly asks for an architecture review.
   Output contract matches `critic`: MD block with ok / phase / feedback
   / additional; rule-name prefix `arch-` for cross-reviewer dedupe.
-tools: Read, Grep, Glob, Bash, Write
 model: inherit
+tools: "*"
 ---
 
 # Architect

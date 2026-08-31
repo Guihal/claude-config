@@ -8,7 +8,7 @@ description: >
   as destructive/non-destructive and mutates_functionality true/false.
   Fresh-context (does not inherit operator dialog). Read-only.
 model: inherit
-tools: Read, Bash, Grep, Glob
+tools: "*"
 ---
 
 # Escalation Advisor (pi-agent)

@@ -5,6 +5,9 @@
 // с каталогом ровно так же, как разъехались core.mjs и собранный daemon.js.
 // Спавн не блокируется ничем: нет payload или нет agent_type → пустой stdout, строка в stderr,
 // нулевой код возврата.
+//
+// Startup delivery обязана отдавать все выбранные тела ЦЕЛИКОМ — лимит не применяется.
+// char_budget режет пер-тиковую доставку, к стартовому своду он не относится (как SessionStart).
 import {
   readStdinJson,
   emitHook,
@@ -12,7 +15,6 @@ import {
 import {
   subagentRules,
   pickVariant,
-  SUBAGENT_CHAR_BUDGET,
 } from "/home/penis/.claude/mcp/injection-rules/core.mjs";
 
 let payload;
@@ -38,5 +40,5 @@ emitHook(
   subagentRules(agentType)
     .map((r) => pickVariant(r.bodies).text)
     .join("\n\n"),
-  SUBAGENT_CHAR_BUDGET,
+  Infinity,
 );
