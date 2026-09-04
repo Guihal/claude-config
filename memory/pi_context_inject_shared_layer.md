@@ -15,8 +15,8 @@ metadata:
 
 Новый инжектор — через слой, не копируя механику; каждый остаётся отдельным экстеншеном (изоляция отказа), слой — библиотека, НЕ мега-экстеншен с реестром (вариант 1 сознательно отвергнут).
 
-**Граница (не втягивать в слой):** `injection-rules` — движок каденций (два клока, coprime-раздача по priority, доставка через input-transform и before_agent_start), не выражается словарём `when`; берёт из хоста максимум логгер. `task-gap` — конверт `role:"user"`, не custom. `rich-compaction`/`auditors` — трансформация истории / доставка вердиктов, другой контракт.
+**Граница (не втягивать в слой):** движок каденций `injection-rules` (два клока, coprime-раздача, input-transform, before_agent_start) — в слое только его доставка reminder'а; `rich-compaction` — трансформация истории, другой контракт.
 
-**Статус миграции (2026-09-03):** канарейка `subagent-snapshot-inject.ts` мигрирована. Follow-up (по одному): `docs-inject`, `memory-context-inject`, `project-structure` на слой; логгер прочих на ext-log. Возможный шаг 2 — сквозной бюджет контекста по всем инжектам (тогда оправдан централизованный реестр).
+**Статус (2026-09-04):** на слое ВСЕ инжекторы контекста — docs-inject, memory-context-inject, project-structure, subagent-snapshot, task-gap (алярм), auditors (вердикт), injection-rules (reminder), control-state (оба уровня); все на `channel: "system"`. Свой `pi.on("context")` ни у кого не остался. injection-rules отдаёт слою только drained reminder, движок каденций остаётся у него. Возможный шаг 2 — сквозной бюджет контекста по всем инжектам.
 
 Связано: [[projects_root]].
