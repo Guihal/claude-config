@@ -10,9 +10,11 @@
 - [Коммит после задачи, не по фазам](commit_after_task_not_per_phase.md) — один коммит+пуш в конце; чужие правки в дереве не разбирать
 - [Скилл управления памятью memory-curation](memory_management_skill_outline.md) — скилл сделан (~/.claude/skills/memory-curation/); что попадает в память, один факт = один файл, индекс = вход, протухание
 - [Список задач живёт в сессии](harness_task_list_storage.md) — ~/.claude/tasks/session-<id>/, вне гита, новая сессия стартует с пустым списком
-- [Субагент умирает с рестартом сессии](subagent_dies_on_session_restart.md) — длинный ревью запускать отвязанным процессом через harness-agent
+- [Субагент умирает с рестартом сессии](subagent_dies_on_session_restart.md) — длинный ревью запускать отвязанным процессом через harness-agent (для НОЧНОГО/автономного; в интерактиве см. ниже)
+- [В интерактиве роли — субагентами](interactive_roles_via_subagents.md) — Agent tool, не harness-agent; переопределяет harness-agent-правило для работы с юзером у экрана
 - [ListAgents врёт про живых агентов](listagents_lies_about_live_agents.md) — живость судить по артефакту и mtime лога, не по тулу
 - [pgrep -f ловит сам себя](pgrep_self_match_hangs_waiter.md) — ожидание роли по строке промпта висит вечно; ждать по PID или по артефакту
+- [Heredoc в Bash-туле = открытый stdin-сокет](bash_tool_heredoc_stdin_socket_hang.md) — дочерний процесс, читающий stdin (pi -p, codex, claude -p), виснет до таймаута; всегда `< /dev/null`, heredoc отдельным вызовом
 - [Два GitHub-аккаунта](github_two_accounts.md) — Guihal по умолчанию, WebAppLabPlatform через отдельный ключ и хост-алиас
 - [Машина: устойчивое железо и ОС](machine_hardware_basics.md) — HONOR BRN-HXXB на CachyOS без dual-boot, Btrfs+Snapper, ath11k_pci, форсированный режим eDP-1
 - [Загрузчик Limine](machine_limine_bootloader.md) — параметры ядра в /boot/limine.conf продублированы в каждой записи, включая снапшоты Snapper
@@ -22,6 +24,7 @@
 - [VPN-сервер: SSH идёт через сам туннель](vpn_server_ssh_via_tunnel.md) — рестарт sing-box/Throne рвёт доступ, нужен автооткат
 - [subbrain: грабли деплоя](subbrain_vps_deploy_gotchas.md) — rsync без --delete, docker compose down -v на prod запрещён, GH-автоматизация мертва
 - [Throne перезаписывает settings](throne_settings_overwrite.md) — правки применяются только при закрытом приложении
+- [Утечка осиротевших MCP-инспекторов](web_inspector_orphan_leak.md) — npx web/browser/playwright инспекторы сиротеют к init при смерти клиента, текут памятью; чистит таймер reap-orphan-inspectors (~/.claude/bin/)
 - [fullPage-скриншот врёт выше 16384px](fullpage_screenshot_16384_limit.md) — хвост повторяет начало страницы; selector web-inspector игнорирует
 - [Tilda: формат бандла t123](tilda-bundle-requirements.md) — inline css+js+html, module scope для изоляции, без CDATA
 - [Оболочка, таймзона, локаль](machine_shell_and_locale.md) — fish без bashisms, Europe/Moscow, ru_RU.UTF-8; версии не хранить
